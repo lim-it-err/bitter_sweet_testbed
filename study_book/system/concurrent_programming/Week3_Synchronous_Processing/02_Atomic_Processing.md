@@ -1,12 +1,12 @@
 # Atomic 처리
 
-## 1. Atomic 처리란?
+Atomic 처리란?
 - 더 이상 나눌 수 없는 처리 단위
 - 처리 도중 실패하면 처리 전 상태로 완전 복원
 
-## 2. Compare and Swap (CAS)
+## 2.1 Compare and Swap (CAS)
 
-### 2.1 의미
+### 의미
 - 동기 처리 기능의 데이터 구조를 구현하기 위해 이용되는 처리 방식
 - 동기 처리 기능: Semaphore, lock-free, wait-free 등
 
@@ -26,7 +26,7 @@ bool compare_and_swap(int *p, int val, int newVal){
 
 ---
 
-### 2.2 구현체
+### 구현체
 
 #### Assembly
 
@@ -96,7 +96,7 @@ pub fn compare_and_swap(ptr: &mut i32, expected: i32, new_val: i32) -> bool {
 
 ---
 
-### 2.3 실제 예시 (Linux Kernel)
+### 실제 예시 (Linux Kernel)
 
 ```c
 static void svm_vcpu_free(struct kvm_vcpu *vcpu)
@@ -149,3 +149,46 @@ static void svm_clear_current_vmcb(struct vmcb *vmcb)
 이를 통해:
 - race condition 없이 안전한 cleanup이 가능
 - 멀티 CPU 환경에서 VMCB 재사용으로 인한 오작동 방지
+
+## 2.2. Test and Set (TAS)
+### 의미
+```c
+bool test_and_set(bool *p){
+    if (*p) return true;
+    *p = true;
+    return false;
+}
+```
+- 입력된 포인터의 값이 true면 true를 반환하고, false면 true로 변환한 후 false를 return 한다.
+- spinlock 등을 구현하기 위해 사용
+
+#### 구현체
+```asm
+; Input: pointer to lock in rdi
+; Output: rax = 0 (lock acquired) or 1 (already locked)
+
+test_and_set:
+mov     al, 1               ; Set AL = 1 (true)
+lock xchg byte [rdi], al    ; Atomically swap AL with *rdi
+ret                         ; If AL was 0 → lock acquired (return 0), else return 1
+```
+
+
+
+## 2.3. LL/SC (Load-Link/Store-Conditional)
+### 의미
+- lock : 특정 변수에 대한 제어 (접근 거부)
+  - 비관적 제어 
+  - Race condition이 자주 발생할 것이라는 가정
+  - 자주 발생하지 않을 경우(과도할 경우) deadlock 가능
+
+- LL/SC : 특정 변수 관찰. 접근 이력 존재 시 무효화
+  - 낙관적 제어
+  - Race Condition이 자주 발생하지 않을 것이라는 가정
+  - 자주 발생할 경우 Starvation 가능
+
+### Lock과의 비교
+- ABA문제에서 자유로움
+- LL/SC는 "데이터의 원자적 갱신"을 위한 미세 동기화 수단 (ChatGPT) 
+- Lock은 "코드의 진입 제어"를 위한 거시적 동기화 수단 (ChatGPT)
+
