@@ -36,3 +36,46 @@ TAS는 "내가 들어갈 수 있나?"만 보는 primitive한 락 도구
 CAS는 "값이 변하지 않았을 때만 바꾸자"는 표현력 있는 조건부 연산
 
 그래서 운영체제 책, CPU 설계 문서, 동시성 프로그래밍 이론에서 이 둘은 별도로 정의되고 교육됩니다.
+
+## 3. 각 장과의 상관관계
+```
+동시성 처리 (Concurrency)
+│
+├── 1. 상호 배제 (Mutual Exclusion)
+│   ├── Mutex (뮤텍스, POSIX pthread_mutex, Java synchronized)
+│   ├── Binary Semaphore (1개의 리소스 → 뮤텍스처럼 사용)
+│   ├── Spinlock (짧은 대기 시간에 유리, busy-wait 기반)
+│   └── Atomic Operations
+│       ├── Test-And-Set (TAS)
+│       ├── Compare-And-Swap (CAS)
+│       └── Load-Link/Store-Conditional (LL/SC, e.g., ARM, RISC-V)
+│
+├── 2. 상태 기반 조건 동기화 (Condition Synchronization)
+│   ├── Condition Variable (wait/signal, POSIX 조건 변수, Java `wait()/notify()`)
+│   ├── Counting Semaphore (N개의 리소스를 보호, 예: 세마포어 5 → 5개까지 동시에 허용)
+│   ├── Futex (Linux fast userspace mutex - 커널 진입 최소화)
+│   └── Monitor (Java의 객체 모니터, `synchronized`에서 내부 사용)
+│
+├── 3. 그룹 동기화 (Collective Synchronization)
+│   ├── Barrier
+│   │   ├── Static Barrier (고정된 스레드 수)
+│   │   └── Dynamic Barrier (조정 가능한 참가자 수)
+│   └── Latch / Countdown Latch (특정 수만큼 이벤트가 완료되면 해제)
+│
+├── 4. Readers–Writer Locks (읽기-쓰기 락)
+│   ├── Shared Lock (여러 읽기 허용)
+│   └── Exclusive Lock (쓰기 시 단독 접근)
+│   ※ POSIX `pthread_rwlock`, Java `ReentrantReadWriteLock`
+│
+├── 5. 생산자-소비자 모델 (Producer–Consumer)
+│   ├── Bounded Buffer / Circular Queue
+│   ├── BlockingQueue (Java), Channel (Rust, Go)
+│   └── Pipe (UNIX), Message Queue (SysV, POSIX, ZeroMQ, etc.)
+│
+└── 6. 고수준 동시성 추상화 (Modern Abstractions)
+├── Task-based Concurrency (async/await, coroutine)
+├── Executor / Thread Pool (Java `ExecutorService`, Rust `tokio`, Python `concurrent.futures`)
+├── Actor Model (Akka, Erlang, Rust `actix`)
+├── Transactional Memory (STM: Software Transactional Memory)
+└── Data Parallelism (OpenMP, CUDA, Rayon)
+```

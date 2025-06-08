@@ -12,4 +12,3 @@ semaphore_release(&cnt);
 
 ### 4.1. LL/SC를 이용한 구현
 
-
