@@ -15,10 +15,10 @@
 
 ## 3.2. IO 다중화(Multiplexing)와 asaync/await
 - Multiplexing
-  - 하나의 자원을 여러 작업을 공유하면서 동시에 처리할 수 있도록 처리하는 기술
+  - 하나의 자원을 여러 작업을 공유하면서 동시에 처리 기술
   - 한 개의 통로로 여러 개의 데이터 흐름을 겹쳐 보냄.
 - IO Selector
   - Task 정보를 받아 감시, 이벤트 발생하면 wake()
-  - 기존 Blocking 함수를 NonBlocking화 해야 함(i.e. TcpListener)
-- 다중화
+
 ### 다양한 Future 구현
+  - 기존 Blocking 함수를 NonBlocking화 해야 함(i.e. TcpListener)
