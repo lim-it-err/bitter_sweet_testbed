@@ -81,4 +81,5 @@
 | 사용 예   | lock-free stack, queue | 고수준 병행 컨테이너, STM 라이브러리        |
 
 
-
+- 참고
+  - https://maxnilz.com/docs/003-database/017-timestampordering/
