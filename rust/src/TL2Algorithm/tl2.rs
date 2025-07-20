@@ -47,6 +47,29 @@ impl Memory{
         n<=rv
     }
 
+    fn lock_addr(&mut self, addr:usize){
+        let idx = addr >> self.shift_size;
+        match self.lock_ver[idx].fetch_update(
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+            |val| {
+                let n = val & ( 1<< 63);
+                if n==0 {
+                    Some(val | (1<<63))}
+                else{
+                    None
+
+                }
+            }
+        ){
+            Ok(_) => true,
+            Err(_) => false,
+        }
+    }
+    fn unlock_addr(&mut self, addr:usize) {
+        let idx = addr >> self.shift_size;
+        self.lock_ver[idx].fetch_and(!(1 << 63), Ordering::Relaxed);
+    }
 
 }
 
