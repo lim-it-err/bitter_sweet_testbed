@@ -1,0 +1,50 @@
+# 2. Software Transactional Memory
+
+- 락 알고리즘 (비관적 락)
+  - 락을 획득하지 않으면 크리티컬 세션 안의 코드는 수행하지 않는 배타 제어 방법
+- 트랜잭셔널 메모리 (낙관적 락)
+  - 코드를 투기적으로 실행
+  - 경합이 감지되지 않았을때 메모리에 결과를 커밋
+  - 크리티컬 세션을 트랜잭션이라 부름
+  - 하드웨어나 소프트웨어로 구현 가능
+    - 소프트웨어: STM 구현 방식 중 하나인 TL2의 알고리즘을 살펴봄
+
+
+## 1. Software Transactional Memory
+### 특징
+#### 트랜잭션 중의 코드가 2회 이상 실행될 가능성이 있다
+#### 트랜잭션 중에 부작용이 있는 코드는 실행하지 않는다
+#### 데드락이 발생하지 않는다
+- STM은 투기적으로 실행한 후 경합을 감시함
+- 경합이 발견된 후에는 트랜잭션을 재시도하므로 2회 이상 실행될 가능성이 있음
+- 실행 횟수가 중요한 함수인 경우 부작용을 주의해야 함 (특히 외부와의 IO)
+  - 복원이 필요함
+  - 재시도를 거듭하면서 커밋을 하지 않는 Starvation 가능
+    - 재시도가 많은 경우 동기 실행하는 프로세스를 제한하는 방법으로 workaround 가능
+
+#### 여러 트랜잭션 처리를 합성할 수 있다. 
+- STM에서는 여러 atomic 블록을 조합해서 새로운 트랜잭션을 쉽게 만들 수 있음.
+
+## 2. TL2 Algorithm
+  구현 참조
+  
+### 주안점
+- write Transaction
+  - read-version : global version-clock을 read-version에 복사
+  - 투기적 실행
+    - write-set에 쓸 대상 주소와 데이터 저장, 실제로는 쓰지 않음
+    - write-set -> 메모리 순으로 읽음
+    - 기타 read Transaction과 동일
+  - write-set 락 획득
+  - global version-clock 증가
+  - read-set 검증
+    - 투기적 실행과 검증 과정 동일
+    - 단, read-version+1 = write-version인 경우에는 이 확인을 건너뛸 수 있음
+    - 그 사이에 write가 없었고, 
+    - 현재 write 트랜잭션이 write-set을 이미 락으로 보호 중
+  - 커밋과 릴리즈 
+- read Transaction
+  - read-version : global version-clock을 read-version에 복사
+  - 투기적 실행
+    - 메모리 읽기 전후로 대상 스트라이프가 락 되어 있는지
+    - 스트라이프 버전이 read-version보다 낮은지 -> `test_not_modify()`
