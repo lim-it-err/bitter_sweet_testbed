@@ -1,7 +1,7 @@
 ---
 id: WC-101
 title: 테스트 하네스 구축 (npm test)
-status: TODO
+status: IN_PROGRESS
 assignee: codex
 priority: P1
 scope: package.json, tests/**, whitechapel/js/** (버그 수정에 한해)
