@@ -186,9 +186,11 @@ function evaluateMove(game, cand, movesUsed, coaches, alleys, patrols, depth) {
   const coachesAfter = coaches - (cand.type === 'coach' ? 1 : 0);
   const alleysAfter = alleys - (cand.type === 'alley' ? 1 : 0);
 
-  // 은신처 도착 = 이번 밤 생존 확정
+  // 은신처 도착 = 이번 밤 생존 확정.
+  // 어려움: 강한 경찰일수록 오래 돌아다니면 단서만 쌓인다 — 이른 귀가 페널티를 줄인다.
   if (pos === jack.hideout) {
-    const earlyPenalty = game.night < 4 ? Math.max(0, 6 - movesAfter) * 25 : 0;
+    const earlyScale = game.diff.beliefModel ? 8 : 25;
+    const earlyPenalty = game.night < 4 ? Math.max(0, 6 - movesAfter) * earlyScale : 0;
     return 900 - earlyPenalty;
   }
 
@@ -228,6 +230,12 @@ function evaluateMove(game, cand, movesUsed, coaches, alleys, patrols, depth) {
   // 단서가 찍힌 곳/이미 지나온 곳 회피
   if (game.cluesPos.has(pos)) score -= 30 * w.ambW;
   if (jack.path.includes(pos)) score -= 12;
+  // 어려움: 이전 밤들의 귀가 동선(마지막 3칸)을 다시 쓰면 잠복에 걸린다 — 접근로를 바꾼다
+  if (game.diff.beliefModel && dHide <= 4) {
+    for (const past of game.allPaths) {
+      if (past.length >= 2 && past.slice(-4, -1).includes(pos)) { score -= 35; break; }
+    }
+  }
 
   // 특수 이동은 자원 — 위급하지 않으면 아낀다. 마지막 마차는 탈출용으로 비축.
   if (cand.type === 'coach') score -= (coaches === 1 && movesAfter < 9 ? 80 : 28) * w.saveW;
