@@ -1,7 +1,7 @@
 ---
 id: WC-102
 title: 시뮬레이션 CLI + 밸런스 리포트
-status: TODO
+status: IN_PROGRESS
 assignee: codex
 priority: P1
 scope: sim/**, docs/works/reports/**, package.json (scripts만)
