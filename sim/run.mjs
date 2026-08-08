@@ -14,18 +14,24 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 function parseArgs(argv) {
-  const args = { games: 200, seed: 18881109, matrix: false, report: false };
+  const args = {
+    games: 200, seed: 18881109, matrix: false, report: false,
+    jack: 'heuristic', playouts: 500,
+  };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--matrix') args.matrix = true;
     else if (arg === '--report') args.report = true;
     else if (arg === '--diff') args.diff = argv[++i];
     else if (arg === '--police') args.police = argv[++i];
+    else if (arg === '--jack') args.jack = argv[++i];
+    else if (arg === '--playouts') args.playouts = Number(argv[++i]);
     else if (arg === '--games') args.games = Number(argv[++i]);
     else if (arg === '--seed') args.seed = Number(argv[++i]);
     else throw new Error(`unknown argument: ${arg}`);
   }
   if (!Number.isInteger(args.games) || args.games < 1) throw new Error('--games must be a positive integer');
+  if (!Number.isInteger(args.playouts) || args.playouts < 1) throw new Error('--playouts must be a positive integer');
   if (!Number.isInteger(args.seed)) throw new Error('--seed must be an integer');
   return args;
 }
@@ -67,7 +73,14 @@ async function main() {
   const summaries = [];
   for (const police of policies) {
     for (const difficulty of difficulties) {
-      summaries.push(await runBatch({ difficulty, police, games: args.games, seed: args.seed }));
+      summaries.push(await runBatch({
+        difficulty,
+        police,
+        jack: args.jack,
+        playouts: args.playouts,
+        games: args.games,
+        seed: args.seed,
+      }));
     }
   }
 
@@ -84,6 +97,7 @@ async function main() {
       '',
       `- 시드: \`${args.seed}\``,
       `- 조합별 게임 수: ${args.games}`,
+      `- 잭 정책: \`${args.jack}\`${args.jack === 'mcts' ? ` (이동당 ${args.playouts} 플레이아웃)` : ''}`,
       `- 총 실행 시간: ${totalSeconds.toFixed(2)}초`,
       '',
       table,
