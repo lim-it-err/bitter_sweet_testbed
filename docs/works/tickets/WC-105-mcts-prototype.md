@@ -1,7 +1,7 @@
 ---
 id: WC-105
 title: MCTS 잭 프로토타입 (오프라인 비교)
-status: TODO
+status: IN_PROGRESS
 assignee: codex
 priority: P3
 scope: sim/**, whitechapel/js/ai.js (승격 시에만, 별도 함수로 추가)
