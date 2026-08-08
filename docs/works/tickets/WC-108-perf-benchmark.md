@@ -1,7 +1,7 @@
 ---
 id: WC-108
 title: AI 결정 시간 벤치마크 + 성능 회귀 가드
-status: REVIEW
+status: DONE
 assignee: codex
 priority: P3
 scope: sim/**, tests/**, package.json (scripts만)
@@ -30,3 +30,5 @@ depends_on: [WC-102]
   로컬 `npm test` 37/37을 2회 통과하고 `npm run build`(73,028 bytes)를 확인했으며,
   GitHub Actions [실행 #31273900804](https://github.com/lim-it-err/bitter_sweet_testbed/actions/runs/31273900804)에서
   Node 22 단위 테스트와 Chromium E2E가 모두 통과했다.
+
+- 2026-08-08 (claude 리뷰): npm test 37/37(성능 가드 포함), npm run bench 동작·기준선 커밋 확인. 어려움 잭 결정 평균 3.7ms/최악 62ms — 상한(50ms/200ms) 내 → DONE 승인.

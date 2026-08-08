@@ -11,7 +11,7 @@
 | WC-105 | MCTS 잭 프로토타입 (오프라인 비교) | codex | P3 | DONE |
 | WC-106 | 단일 파일 빌드 스크립트 | codex | P2 | DONE |
 | WC-107 | 브라우저 E2E 테스트 (Playwright) + CI 통합 | codex | P2 | DONE |
-| WC-108 | AI 결정 시간 벤치마크 + 성능 회귀 가드 | codex | P3 | REVIEW |
+| WC-108 | AI 결정 시간 벤치마크 + 성능 회귀 가드 | codex | P3 | DONE |
 | WC-201 | 맵 확장 (12×9, 순찰대 6, 살인지 10) | claude | P1 | DONE |
 | WC-202 | 어려움 난이도: LLM 없는 고급 AI | claude | P1 | DONE |
 | WC-203 | 난이도 밸런스 검증 (쉬움<보통<어려움) | claude | P1 | DONE |
