@@ -3,10 +3,14 @@ import { performance } from 'node:perf_hooks';
 import { mulberry32, generateBoard } from '../whitechapel/js/board.js';
 import { Game } from '../whitechapel/js/game.js';
 import { randomPolice } from './police/random.mjs';
+import { smartPolice } from './police/smart.mjs';
 
 export const DIFFICULTIES = ['easy', 'medium', 'hard'];
 
-const POLICIES = new Map([[randomPolice.key, randomPolice]]);
+const POLICIES = new Map([
+  [randomPolice.key, randomPolice],
+  [smartPolice.key, smartPolice],
+]);
 
 export function registerPolicePolicy(policy) {
   if (!policy?.key || typeof policy.takeTurn !== 'function') {

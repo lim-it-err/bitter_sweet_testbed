@@ -36,6 +36,27 @@ function today() {
   }).format(new Date());
 }
 
+function policyComparison(summaries) {
+  const lines = [
+    '## 경찰 정책 비교',
+    '',
+    '| 난이도 | random 검거율 | smart 검거율 | 배율 |',
+    '|---|---:|---:|---:|',
+  ];
+  let rows = 0;
+  for (const difficulty of DIFFICULTIES) {
+    const random = summaries.find((item) => item.difficulty === difficulty && item.police === 'random');
+    const smart = summaries.find((item) => item.difficulty === difficulty && item.police === 'smart');
+    if (!random || !smart) continue;
+    const randomRate = random.policeWins / random.games;
+    const smartRate = smart.policeWins / smart.games;
+    const ratio = randomRate === 0 ? null : smartRate / randomRate;
+    lines.push(`| ${difficulty} | ${(randomRate * 100).toFixed(1)}% | ${(smartRate * 100).toFixed(1)}% | ${ratio === null ? '-' : `${ratio.toFixed(2)}×`} |`);
+    rows++;
+  }
+  return rows > 0 ? lines.join('\n') : '';
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const difficulties = args.matrix ? DIFFICULTIES : [args.diff ?? 'hard'];
@@ -51,7 +72,8 @@ async function main() {
   }
 
   const table = formatMarkdownTable(summaries);
-  process.stdout.write(`${table}\n`);
+  const comparison = policyComparison(summaries);
+  process.stdout.write(`${table}${comparison ? `\n\n${comparison}` : ''}\n`);
 
   if (args.report) {
     const reportDir = path.join(ROOT, 'docs', 'works', 'reports');
@@ -65,6 +87,7 @@ async function main() {
       `- 총 실행 시간: ${totalSeconds.toFixed(2)}초`,
       '',
       table,
+      ...(comparison ? ['', comparison] : []),
       '',
     ].join('\n');
     await mkdir(reportDir, { recursive: true });
