@@ -44,6 +44,7 @@ export class Game {
     this.arrestFails = []; // {circle, atMove}
     this.declared = []; // 이번 밤 잭 이동 종류 목록: 'move'|'coach'|'alley'
     this.allPaths = []; // 밤별 잭 이동 경로(게임 종료 시 공개)
+    this.events = []; // 리뷰(기보) 내보내기용 구조화 이벤트
     this.log = [];
     this.phase = 'setup'; // setup|jack|police|nightEnd|gameOver
     this.winner = null; // 'police'|'jack'
@@ -74,6 +75,7 @@ export class Game {
     this.arrestFails = [];
     this.persona = this.diff.personas ? pickPersona() : null;
     this.phase = 'jack';
+    this.events.push({ t: 'night', night: this.night, site });
     this.addLog(`${this.night}번째 밤 — ${this.board.circles[site].num}번 지점에서 살인이 일어났습니다!`, 'murder');
   }
 
@@ -108,9 +110,14 @@ export class Game {
       this.winner = 'police';
       this.phase = 'gameOver';
       this.allPaths.push([...this.jack.path]);
+      this.events.push({ t: 'end', winner: 'police', reason: 'trapped', night: this.night });
       this.addLog('잭이 순찰대에 포위되어 움직이지 못했습니다. 검거 성공!', 'win');
       return;
     }
+    this.events.push({
+      t: 'jack', night: this.night, moveNo: this.jack.movesUsed + 1,
+      kind: move.type, from: this.jack.pos, mid: move.mid, to: move.to,
+    });
     if (move.type === 'coach') {
       this.jack.coaches--;
       this.jack.path.push(move.mid, move.to);
@@ -136,6 +143,7 @@ export class Game {
       this.winner = 'police';
       this.phase = 'gameOver';
       this.allPaths.push([...this.jack.path]);
+      this.events.push({ t: 'end', winner: 'police', reason: 'dawn', night: this.night });
       this.addLog('동이 텄습니다. 은신처로 돌아가지 못한 잭이 검거되었습니다!', 'win');
       return;
     }
@@ -145,9 +153,11 @@ export class Game {
 
   endNight() {
     this.allPaths.push([...this.jack.path]);
+    this.events.push({ t: 'nightEnd', night: this.night, moves: this.jack.movesUsed });
     if (this.night >= NIGHTS) {
       this.winner = 'jack';
       this.phase = 'gameOver';
+      this.events.push({ t: 'end', winner: 'jack', reason: 'survived', night: this.night });
       this.addLog('잭이 마지막 밤에도 은신처로 사라졌습니다. 잭의 승리...', 'lose');
     } else {
       this.phase = 'nightEnd';
@@ -179,6 +189,10 @@ export class Game {
   movePatrol(patrolId, targetCrossing) {
     const p = this.patrols[patrolId];
     if (this.phase !== 'police' || !this.patrolReachable(p).has(targetCrossing)) return false;
+    this.events.push({
+      t: 'pmove', night: this.night, moveNo: this.jack.movesUsed,
+      pid: p.id, from: p.crossing, to: targetCrossing,
+    });
     p.crossing = targetCrossing;
     p.stepsLeft = 0;
     return true;
@@ -195,7 +209,9 @@ export class Game {
     p.acted = true;
     const num = this.board.circles[circleId].num;
     if (kind === 'search') {
-      if (this.jack.path.includes(circleId)) {
+      const found = this.jack.path.includes(circleId);
+      this.events.push({ t: 'search', night: this.night, moveNo: this.jack.movesUsed, pid: p.id, circle: circleId, found });
+      if (found) {
         this.cluesPos.add(circleId);
         this.addLog(`순찰대 ${p.id + 1}이(가) ${num}번 지점에서 단서를 발견했습니다!`, 'clue');
       } else {
@@ -204,10 +220,13 @@ export class Game {
         this.addLog(`순찰대 ${p.id + 1}이(가) ${num}번 지점을 수색했지만 흔적이 없습니다.`, '');
       }
     } else if (kind === 'arrest') {
-      if (this.jack.pos === circleId) {
+      const success = this.jack.pos === circleId;
+      this.events.push({ t: 'arrest', night: this.night, moveNo: this.jack.movesUsed, pid: p.id, circle: circleId, success });
+      if (success) {
         this.winner = 'police';
         this.phase = 'gameOver';
         this.allPaths.push([...this.jack.path]);
+        this.events.push({ t: 'end', winner: 'police', reason: 'arrest', night: this.night });
         this.addLog(`순찰대 ${p.id + 1}이(가) ${num}번 지점에서 잭을 체포했습니다! 승리!`, 'win');
       } else {
         this.arrestFails.push({ circle: circleId, atMove: this.jack.movesUsed });
