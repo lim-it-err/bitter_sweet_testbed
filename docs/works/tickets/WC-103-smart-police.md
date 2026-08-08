@@ -1,7 +1,7 @@
 ---
 id: WC-103
 title: 스마트 경찰 베이스라인 (belief 기반)
-status: TODO
+status: IN_PROGRESS
 assignee: codex
 priority: P2
 scope: sim/**

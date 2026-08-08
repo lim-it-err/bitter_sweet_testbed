@@ -6,7 +6,7 @@
 |---|---|---|---|---|
 | WC-101 | 테스트 하네스 구축 (npm test) | codex | P1 | DONE |
 | WC-102 | 시뮬레이션 CLI + 밸런스 리포트 | codex | P1 | REVIEW |
-| WC-103 | 스마트 경찰 베이스라인 (belief 기반) | codex | P2 | TODO |
+| WC-103 | 스마트 경찰 베이스라인 (belief 기반) | codex | P2 | IN_PROGRESS |
 | WC-104 | CI: 푸시마다 테스트 실행 | codex | P2 | TODO |
 | WC-105 | MCTS 잭 프로토타입 (오프라인 비교) | codex | P3 | TODO |
 | WC-106 | 단일 파일 빌드 스크립트 | codex | P2 | TODO |
