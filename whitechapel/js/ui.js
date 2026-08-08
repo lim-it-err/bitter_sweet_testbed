@@ -122,18 +122,18 @@ export class UI {
   }
 
   onPatrolClick(pid) {
-    if (this.game.phase !== 'police') return;
+    if (this.game.phase !== 'police' || this.game.spectate) return;
     this.selectedPatrol = this.selectedPatrol === pid ? null : pid;
     this.render();
   }
 
   onCrossingClick(cid) {
-    if (this.game.phase !== 'police' || this.selectedPatrol === null || this.mode !== 'move') return;
+    if (this.game.phase !== 'police' || this.game.spectate || this.selectedPatrol === null || this.mode !== 'move') return;
     if (this.game.movePatrol(this.selectedPatrol, cid)) this.render();
   }
 
   onCircleClick(circleId) {
-    if (this.game.phase !== 'police' || this.selectedPatrol === null) return;
+    if (this.game.phase !== 'police' || this.game.spectate || this.selectedPatrol === null) return;
     if (this.mode !== 'search' && this.mode !== 'arrest') return;
     if (this.game.policeAction(this.selectedPatrol, this.mode, circleId)) {
       this.selectedPatrol = null;
@@ -226,13 +226,15 @@ export class UI {
     const phaseText = {
       setup: '준비 중',
       jack: '잭이 움직이는 중...',
-      police: '경찰 턴 — 순찰대를 지휘하세요',
+      police: g.spectate ? 'AI 경찰이 수사 중...' : '경찰 턴 — 순찰대를 지휘하세요',
       nightEnd: '밤이 끝났습니다',
-      gameOver: g.winner === 'police' ? '승리! 잭을 검거했습니다' : '패배... 잭이 사라졌습니다',
+      gameOver: g.winner === 'police'
+        ? (g.spectate ? 'AI 경찰이 잭을 검거했습니다' : '승리! 잭을 검거했습니다')
+        : '잭이 사라졌습니다...',
     };
     set('info-phase', phaseText[g.phase] ?? '');
 
-    document.getElementById('btn-endturn').disabled = g.phase !== 'police';
+    document.getElementById('btn-endturn').disabled = g.phase !== 'police' || !!g.spectate;
     const reviewReady = g.phase === 'gameOver';
     document.getElementById('btn-review-dl').disabled = !reviewReady;
     document.getElementById('btn-review-copy').disabled = !reviewReady;

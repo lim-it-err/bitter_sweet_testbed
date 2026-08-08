@@ -16,3 +16,5 @@
 | WC-204 | GitHub Pages 배포 워크플로 + PR | claude | P1 | DONE |
 | WC-205 | 악몽 난이도: Sonnet 연동 설계 | claude | P3 | TODO |
 | WC-206 | 게임 리뷰(기보) 내보내기 — LLM 분석용 | claude | P1 | DONE |
+| WC-207 | AI 관전 모드 (경찰 AI vs 잭 AI) | claude | P2 | DONE |
+| WC-208 | 모바일 가로모드 UX | claude | P2 | DONE |
