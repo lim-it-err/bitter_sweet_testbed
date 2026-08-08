@@ -1,7 +1,7 @@
 ---
 id: WC-107
 title: 브라우저 E2E 테스트 (Playwright) + CI 통합
-status: TODO
+status: IN_PROGRESS
 assignee: codex
 priority: P2
 scope: e2e/**, package.json (scripts/devDependencies), .github/workflows/test.yml
