@@ -7,13 +7,14 @@
 
 1. `git pull --rebase origin claude/whitechapel-game-dev-4b46sk`
 2. `docs/works/BOARD.md`와 `docs/works/tickets/`에서 **assignee: codex**이고 **status: TODO**인
-   티켓 중 우선순위(P1>P2>P3)가 가장 높고 `depends_on`이 모두 DONE/REVIEW인 것을 하나 잡는다.
+   티켓 중 우선순위(P1>P2>P3)가 가장 높고 `depends_on`이 모두 DONE/REVIEW인 것부터 잡는다.
 3. 잡은 티켓의 frontmatter를 `status: IN_PROGRESS`로 바꾸고 BOARD.md 갱신 후 **먼저 커밋/푸시**한다(착수 락).
 4. 티켓의 `scope`에 명시된 파일만 수정한다. 완료 조건(AC)을 전부 만족시킨다.
 5. 테스트가 있으면 `npm test` 통과 확인 후 푸시. 커밋 메시지는 `WC-<번호>: <요약>`.
 6. 끝나면 `status: REVIEW` + 작업 로그 작성 + BOARD.md 갱신 후 푸시. DONE 전환은 claude가 한다.
-7. 시간이 남으면 다음 티켓을 잡는다. 새 개선 아이디어는 직접 구현하지 말고
-   WC-1xx 번호로 새 TODO 티켓을 만들어 제안한다.
+7. 한 티켓을 완료하면 즉시 1번부터 다시 반복한다. **한 번의 세션에서 처리 가능한 Codex 티켓이
+   하나도 남지 않을 때까지 멈추지 않는다.** 의존성이 풀리면 같은 세션에서 후속 티켓도 계속 처리한다.
+8. 새 개선 아이디어는 직접 구현하지 말고 WC-1xx 번호로 새 TODO 티켓을 만들어 제안한다.
 
 ## 금지 사항
 

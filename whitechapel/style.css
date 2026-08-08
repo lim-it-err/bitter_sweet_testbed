@@ -178,8 +178,48 @@ button.ghost { background: var(--panel2); color: var(--ink); border: 1px solid #
 footer { text-align: center; padding: 8px; color: #6e6580; font-size: 0.75rem; }
 footer a { color: #9b8ab5; }
 
+.hidden-btn { display: none; }
+.hidden-btn.visible { display: block; }
+
+/* 세로 화면 회전 안내 */
+#rotate-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--bg);
+  align-items: center; justify-content: center;
+  text-align: center;
+}
+#rotate-overlay.dismissed { display: none !important; }
+.rotate-box { padding: 30px; max-width: 320px; }
+.rotate-icon { font-size: 3rem; margin-bottom: 14px; animation: tilt 1.6s ease-in-out infinite; }
+@keyframes tilt { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-90deg); } }
+@media (prefers-reduced-motion: reduce) { .rotate-icon { animation: none; } }
+.rotate-box p { margin-bottom: 10px; }
+.rotate-box button { margin-top: 12px; width: 100%; }
+
+@media (orientation: portrait) and (max-width: 920px) {
+  #rotate-overlay { display: flex; }
+}
+
+/* 세로를 고집하는 경우의 폴백 레이아웃 */
 @media (max-width: 900px) {
   main { flex-direction: column; }
   #panel { width: 100%; }
   #board { max-height: 60vh; }
+}
+
+/* 모바일 가로(낮은 높이) 최적화 */
+@media (max-height: 540px) and (orientation: landscape) {
+  header { padding: 6px 8px 2px; }
+  header h1 { font-size: 1.1rem; letter-spacing: 0.2em; }
+  .subtitle { display: none; }
+  main { padding: 6px 8px; gap: 8px; }
+  #panel { width: 250px; overflow-y: auto; }
+  .card { padding: 8px 10px; }
+  .card h2 { margin-bottom: 4px; }
+  .hint.small { display: none; }
+  #board { max-height: calc(100vh - 60px); }
+  #log { max-height: 20vh; }
+  button { padding: 7px 8px; font-size: 0.85rem; }
+  footer { display: none; }
 }

@@ -47,6 +47,7 @@
         <label class="hint"><input type="checkbox" id="chk-belief" /> 잭의 추정 위치 표시 (근사)</label>
         <div class="btn-row">
           <button id="btn-endturn" disabled>턴 종료 (잭 이동)</button>
+          <button id="btn-speed" class="ghost hidden-btn">⏩ 빨리감기</button>
           <button id="btn-newgame" class="ghost">새 게임</button>
         </div>
       </section>
@@ -80,6 +81,13 @@
         잭이 4번의 밤을 모두 버티면 당신의 패배입니다.
       </p>
       <fieldset>
+        <legend>모드</legend>
+        <label><input type="radio" name="pmode" value="play" checked />
+          직접 지휘 — 당신이 경찰 순찰대를 조작합니다</label>
+        <label><input type="radio" name="pmode" value="spectate" />
+          AI 관전 — 경찰도 AI가 지휘하는 대결을 지켜봅니다</label>
+      </fieldset>
+      <fieldset>
         <legend>난이도</legend>
         <label><input type="radio" name="difficulty" value="easy" checked />
           쉬움 — 잭이 한 수 앞만 봅니다 (탐색 깊이 1)</label>
@@ -92,6 +100,16 @@
       </fieldset>
       <p id="start-warn" class="warn"></p>
       <button id="btn-start">게임 시작</button>
+    </div>
+  </div>
+
+  <!-- 세로 화면 회전 안내 -->
+  <div id="rotate-overlay">
+    <div class="rotate-box">
+      <div class="rotate-icon">📱↻</div>
+      <p><b>가로 모드로 돌려주세요</b></p>
+      <p class="hint small">이 게임은 넓은 지도를 쓰는 가로 화면에 최적화되어 있습니다.</p>
+      <button id="btn-rotate-dismiss" class="ghost">그래도 세로로 볼래요</button>
     </div>
   </div>
 
