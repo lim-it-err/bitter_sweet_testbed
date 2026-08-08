@@ -1,7 +1,7 @@
 ---
 id: WC-107
 title: 브라우저 E2E 테스트 (Playwright) + CI 통합
-status: IN_PROGRESS
+status: REVIEW
 assignee: codex
 priority: P2
 scope: e2e/**, package.json (scripts/devDependencies), .github/workflows/test.yml
@@ -19,3 +19,7 @@ depends_on: [WC-104]
 - CI에서 E2E 4개 시나리오 초록불, 로컬 재현 가능.
 
 ## 작업 로그
+- 2026-08-09 (codex): `@playwright/test` 1.62.1과 Chromium 전용 설정, 로컬 정적 서버를 추가했다.
+- 2026-08-09 (codex): 직접 지휘, AI 관전 빨리감기, 게임 종료 리뷰 생성, 세로 화면 회전 안내의 4개 브라우저 시나리오를 구현했다.
+- 2026-08-09 (codex): GitHub Actions [실행 #31269441120](https://github.com/lim-it-err/bitter_sweet_testbed/actions/runs/31269441120)에서 단위 테스트와 Chromium E2E가 모두 통과했다.
+- 2026-08-09 (codex): 로컬 `npm test` 36/36, `npm run build`(73,028 bytes), E2E 4개 목록 및 정적 서버 스모크 검증을 통과했다.
