@@ -79,7 +79,24 @@ export function chooseMurderSite(game) {
 }
 
 // ---------------------------------------------------------------------------
-// 이동 결정 (쉬움/보통: max depth 탐색)
+// 잭의 성향(페르소나) — 어려움 난이도에서 밤마다 무작위로 바뀌어 패턴 읽기를 막는다
+// ---------------------------------------------------------------------------
+// ambW: 모호성(추정 위치 넓게 유지) / dangerW: 위험 회피 / homingW: 귀가 압박 / saveW: 특수 이동 절약
+
+export const PERSONAS = [
+  { name: 'phantom', ambW: 2.0, dangerW: 1.2, homingW: 0.9, saveW: 1.0 }, // 안개처럼 — 흔적을 흐린다
+  { name: 'sprinter', ambW: 0.7, dangerW: 0.8, homingW: 1.6, saveW: 0.5 }, // 전력 질주 — 특수 이동을 아끼지 않는다
+  { name: 'drifter', ambW: 1.2, dangerW: 1.6, homingW: 1.0, saveW: 1.2 }, // 신중하게 — 경찰 근처엔 얼씬도 안 한다
+];
+
+export function pickPersona() {
+  return PERSONAS[Math.floor(Math.random() * PERSONAS.length)];
+}
+
+const DEFAULT_WEIGHTS = { ambW: 1, dangerW: 1, homingW: 1, saveW: 1 };
+
+// ---------------------------------------------------------------------------
+// 이동 결정 (쉬움/보통/어려움: max depth 탐색)
 // ---------------------------------------------------------------------------
 
 export async function decideJackMove(game) {
@@ -88,17 +105,42 @@ export async function decideJackMove(game) {
   const cands = feasibleMoves(game, game.jack.pos, game.jack.movesUsed, game.jack.coaches, game.jack.alleys, game.patrols);
   if (cands.length === 0) return null; // 포위됨
 
-  // 추정 위치 집합 크기(모호성) — 루트 후보에만 보너스로 반영
+  // 추정 위치 집합 — 모호성 보너스와 (어려움) 상대 모델 양쪽에 사용
   const belief = game.computeBelief();
+  game._rootBelief = belief;
 
-  let best = null, bestScore = -Infinity;
-  for (const cand of cands) {
-    let score = evaluateMove(game, cand, game.jack.movesUsed, game.jack.coaches, game.jack.alleys, virtualPatrols(game.patrols), game.diff.maxDepth);
-    score += ambiguityBonus(game, belief, cand);
-    score += (Math.random() - 0.5) * game.diff.noise;
-    if (score > bestScore) { bestScore = score; best = cand; }
+  // 어려움: belief 기반 경찰 예측은 후보 수와 무관하므로 탐색 레벨별로 미리 1회만 계산
+  if (game.diff.beliefModel && belief.size > 0) {
+    game._patrolsByLevel = [];
+    let cur = virtualPatrols(game.patrols);
+    for (let lvl = 0; lvl < Math.max(1, game.diff.maxDepth); lvl++) {
+      cur = advancePatrolsBelief(game.board, cur, belief);
+      game._patrolsByLevel.push(cur);
+    }
+  } else {
+    game._patrolsByLevel = null;
   }
-  return best;
+
+  const scored = cands.map((cand) => {
+    let score = evaluateMove(game, cand, game.jack.movesUsed, game.jack.coaches, game.jack.alleys, virtualPatrols(game.patrols), game.diff.maxDepth);
+    score += ambiguityBonus(game, belief, cand) * weights(game).ambW;
+    score += (Math.random() - 0.5) * game.diff.noise;
+    return { cand, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+
+  // 어려움: 최선과 근접한 수들 사이에서 확률적으로 선택 — 결정론적 패턴을 없앤다
+  if (game.diff.mixedTopK && scored.length > 1) {
+    const near = scored.filter((s) => s.score >= scored[0].score - 12);
+    if (near.length > 1 && Math.random() < 0.35) {
+      return near[1 + Math.floor(Math.random() * (near.length - 1))].cand;
+    }
+  }
+  return scored[0].cand;
+}
+
+function weights(game) {
+  return game.persona ?? DEFAULT_WEIGHTS;
 }
 
 function virtualPatrols(patrols) {
@@ -154,6 +196,7 @@ function evaluateMove(game, cand, movesUsed, coaches, alleys, patrols, depth) {
   const remaining = MOVES_PER_NIGHT - movesAfter;
   if (dHide > remaining) return -5000; // 새벽까지 못 돌아감
 
+  const w = weights(game);
   let score = 0;
   const slack = remaining - dHide;
   // 여유가 줄어들수록 급격히 불안해진다 — 새벽 검거 방지가 최우선
@@ -162,11 +205,16 @@ function evaluateMove(game, cand, movesUsed, coaches, alleys, patrols, depth) {
   else if (slack === 1) score -= 50;
   else score -= 140;
   // 밤이 깊어지면(9번째 이동 이후) 은신처 쪽으로 꾸준히 압박
-  if (movesAfter >= 9) score -= dHide * (movesAfter - 8) * 1.5;
+  if (movesAfter >= 9) score -= dHide * (movesAfter - 8) * 1.5 * w.homingW;
 
   // 경찰이 다가온 뒤의 위험도 — 단, 귀가가 급하면 위험을 감수한다
-  const dangerScale = slack <= 2 ? 0.45 : 1;
-  const advanced = advancePatrols(board, patrols, pos);
+  // 어려움(beliefModel): 경찰은 잭의 실제 위치가 아니라 "추정 위치 집합"만 안다고
+  // 가정하고 접근을 예측 — 과잉 공포 없이 진짜 위험한 수만 피하게 된다
+  const dangerScale = (slack <= 2 ? 0.45 : 1) * w.dangerW * (game.diff.dangerMul ?? 1);
+  const level = Math.max(1, game.diff.maxDepth) - depth; // 0 = 루트 후보 평가
+  const advanced = game._patrolsByLevel
+    ? game._patrolsByLevel[Math.min(level, game._patrolsByLevel.length - 1)]
+    : advancePatrols(board, patrols, pos);
   for (const p of advanced) {
     const cd = Math.min(
       board.crossingDist[p.crossing][board.circles[pos].a],
@@ -178,12 +226,12 @@ function evaluateMove(game, cand, movesUsed, coaches, alleys, patrols, depth) {
   }
 
   // 단서가 찍힌 곳/이미 지나온 곳 회피
-  if (game.cluesPos.has(pos)) score -= 30;
+  if (game.cluesPos.has(pos)) score -= 30 * w.ambW;
   if (jack.path.includes(pos)) score -= 12;
 
   // 특수 이동은 자원 — 위급하지 않으면 아낀다. 마지막 마차는 탈출용으로 비축.
-  if (cand.type === 'coach') score -= coaches === 1 && movesAfter < 9 ? 80 : 28;
-  if (cand.type === 'alley') score -= 22;
+  if (cand.type === 'coach') score -= (coaches === 1 && movesAfter < 9 ? 80 : 28) * w.saveW;
+  if (cand.type === 'alley') score -= 22 * w.saveW;
 
   if (depth > 1) {
     const nextCands = feasibleMovesSim(game, pos, movesAfter, coachesAfter, alleysAfter, advanced);
@@ -217,6 +265,32 @@ function advancePatrols(board, patrols, jackPos) {
       let bestD = Math.min(board.crossingDist[cur][target.a], board.crossingDist[cur][target.b]);
       for (const n of board.crossingAdj[cur]) {
         const d = Math.min(board.crossingDist[n][target.a], board.crossingDist[n][target.b]);
+        if (d < bestD) { bestD = d; bestN = n; }
+      }
+      cur = bestN;
+    }
+    return { crossing: cur };
+  });
+}
+
+// 현실적 경찰 모델(어려움): 순찰대는 잭의 실제 위치가 아니라 공개 정보로 계산되는
+// 추정 위치 집합(belief) 중 가장 가까운 지점으로 접근한다고 가정
+function advancePatrolsBelief(board, patrols, belief) {
+  const beliefDist = (crossing) => {
+    let m = Infinity;
+    for (const b of belief) {
+      const c = board.circles[b];
+      const d = Math.min(board.crossingDist[crossing][c.a], board.crossingDist[crossing][c.b]);
+      if (d < m) m = d;
+    }
+    return m;
+  };
+  return patrols.map((p) => {
+    let cur = p.crossing;
+    for (let step = 0; step < 2; step++) {
+      let bestN = cur, bestD = beliefDist(cur);
+      for (const n of board.crossingAdj[cur]) {
+        const d = beliefDist(n);
         if (d < bestD) { bestD = d; bestN = n; }
       }
       cur = bestN;

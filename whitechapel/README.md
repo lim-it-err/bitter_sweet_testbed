@@ -20,9 +20,13 @@
 
 | 난이도 | 방식 |
 |---|---|
-| 쉬움 | 깊이 1 탐색 + 큰 노이즈 (한 수 앞만 봄) |
+| 쉬움 | 깊이 1 탐색 + 큰 노이즈 + 낮은 위험 감지 (한 수 앞만 봄) |
 | 보통 | 깊이 3 탐색 (경찰을 비관적 모델로 두고 몇 수 앞의 포위망을 회피) |
-| 어려움 | **미구현** — Claude Sonnet API에 게임 상태를 보내 수를 결정할 예정 (`js/ai.js`의 `sonnetJackMove` 스텁 참고) |
+| 어려움 | 깊이 4 탐색 + 밤마다 바뀌는 페르소나 3종 + 경찰의 실제 지식(추정 위치 집합)만 반영한 상대 모델 + 상위 수 확률 혼합(패턴 리딩 방지) — **LLM 없이 구현** |
+| 악몽 | **미구현** — Claude Sonnet API에 게임 상태를 보내 수를 결정할 예정 (`js/ai.js`의 `sonnetJackMove` 스텁 참고) |
+
+무작위 경찰 베이스라인 60판 기준 잭 생존율: 쉬움 62% < 보통 63% < 어려움 70%
+(사람 플레이어 기준으로는 격차가 더 벌어집니다 — 정밀 측정은 `docs/works` WC-102/103에서 진행)
 
 쉬움/보통의 휴리스틱은 다음을 참고해 설계했습니다.
 
@@ -45,10 +49,16 @@ python3 -m http.server 8000
 
 ## GitHub Pages 배포
 
-1. 이 브랜치를 `main`에 머지
-2. 레포 **Settings → Pages → Build and deployment**에서
-   Source: *Deploy from a branch*, Branch: `main` / `/ (root)` 선택
-3. 몇 분 뒤 접속: `https://<계정>.github.io/bitter_sweet_testbed/whitechapel/`
+`.github/workflows/deploy-pages.yml`이 `main` 푸시 시 `whitechapel/`을 사이트 루트로 자동 배포한다.
+
+1. PR을 `main`에 머지하면 Actions가 배포 실행 (Pages 미활성 상태면 워크플로가 활성화 시도)
+2. 접속: `https://<계정>.github.io/bitter_sweet_testbed/`
+3. 워크플로가 Pages 활성화에 실패하면 **Settings → Pages → Source: GitHub Actions** 한 번만 수동 설정
+
+## 협업
+
+개발 티켓은 `docs/works/`에서 Jira처럼 관리한다 (운영 룰: `docs/works/README.md`,
+Codex 지침: `.codex/instructions.md`).
 
 ## 저작권에 대하여
 

@@ -10,15 +10,22 @@
 //   - 마차(총 3회): 한 턴에 지점 2칸 이동, 경찰이 선 교차점도 통과 가능
 //   - 골목(총 2회): 같은 블록에 접한 다른 지점으로 순간 이동
 
-import { decideJackMove, chooseHideout, chooseMurderSite } from './ai.js';
+import { decideJackMove, chooseHideout, chooseMurderSite, pickPersona } from './ai.js';
 
 export const MOVES_PER_NIGHT = 15;
 export const NIGHTS = 4;
 
 export const DIFFICULTY = {
-  easy: { key: 'easy', name: '쉬움', maxDepth: 1, noise: 25, sonnet: false },
-  medium: { key: 'medium', name: '보통', maxDepth: 3, noise: 6, sonnet: false },
-  hard: { key: 'hard', name: '어려움 (Sonnet)', maxDepth: 0, noise: 0, sonnet: true },
+  easy: { key: 'easy', name: '쉬움', maxDepth: 1, noise: 35, dangerMul: 0.5, sonnet: false },
+  medium: { key: 'medium', name: '보통', maxDepth: 3, noise: 6, dangerMul: 1, sonnet: false },
+  // 어려움: LLM 없이 강하게 —
+  //  깊이 4 탐색 + 밤마다 무작위 성향(페르소나) + 경찰의 실제 지식(추정 위치)을 반영한
+  //  상대 모델 + 상위 수 무작위 혼합(패턴 읽기 방지)
+  hard: {
+    key: 'hard', name: '어려움', maxDepth: 4, noise: 0, sonnet: false,
+    personas: true, beliefModel: true, mixedTopK: true,
+  },
+  nightmare: { key: 'nightmare', name: '악몽 (Sonnet)', maxDepth: 0, noise: 0, sonnet: true },
 };
 
 export class Game {
@@ -65,6 +72,7 @@ export class Game {
     this.cluesNeg.clear();
     this.negHistory = [];
     this.arrestFails = [];
+    this.persona = this.diff.personas ? pickPersona() : null;
     this.phase = 'jack';
     this.addLog(`${this.night}번째 밤 — ${this.board.circles[site].num}번 지점에서 살인이 일어났습니다!`, 'murder');
   }

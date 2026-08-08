@@ -18,8 +18,8 @@ export function mulberry32(seed) {
   };
 }
 
-const W = 10; // 교차점 격자 가로
-const H = 7; // 교차점 격자 세로
+const W = 12; // 교차점 격자 가로
+const H = 9; // 교차점 격자 세로
 const SP = 92; // 격자 간격(px)
 const MARGIN = 64;
 
@@ -184,13 +184,13 @@ export function generateBoard(seed = 18881109) {
   const circleDist = circles.map((_, i) => bfsDist(circleAdjPlain, circles.length, i));
   const crossingDist = crossings.map((_, i) => bfsDist(crossingAdj, crossings.length, i));
 
-  // 살인 후보지 8곳(붉은 지점) — 보드 전역에 분산
+  // 살인 후보지 10곳(붉은 지점) — 보드 전역에 분산
   const allCircleIds = circles.map((c) => c.id);
-  const murderSites = spreadSample(circleDist, allCircleIds, 8, Math.floor(rnd() * circles.length));
+  const murderSites = spreadSample(circleDist, allCircleIds, 10, Math.floor(rnd() * circles.length));
 
-  // 경찰 시작 교차점 5곳 — 분산 배치
+  // 경찰 시작 교차점 6곳 — 분산 배치 (맵이 커진 만큼 순찰대도 6명)
   const allCrossIds = crossings.map((c) => c.id);
-  const policeStarts = spreadSample(crossingDist, allCrossIds, 5, Math.floor(rnd() * crossings.length));
+  const policeStarts = spreadSample(crossingDist, allCrossIds, 6, Math.floor(rnd() * crossings.length));
 
   return {
     crossings, circles, circlesAt, crossingAdj, circleAdj,

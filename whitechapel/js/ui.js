@@ -2,7 +2,7 @@
 import { MOVES_PER_NIGHT, NIGHTS } from './game.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
-const PATROL_COLORS = ['#4ea3ff', '#ffd23f', '#7ee081', '#ff8fd6', '#ffa94d'];
+const PATROL_COLORS = ['#4ea3ff', '#ffd23f', '#7ee081', '#ff8fd6', '#ffa94d', '#b9e5ff'];
 const NIGHT_PATH_COLORS = ['#ff5c5c', '#ffb347', '#7ee081', '#4ea3ff'];
 
 function el(tag, attrs = {}, parent = null) {

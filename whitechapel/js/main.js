@@ -14,9 +14,9 @@ function startScreen() {
 
 document.getElementById('btn-start').addEventListener('click', () => {
   const diff = document.querySelector('input[name="difficulty"]:checked').value;
-  if (diff === 'hard') {
+  if (diff === 'nightmare') {
     document.getElementById('start-warn').textContent =
-      '어려움(Sonnet) 난이도는 아직 구현되지 않았습니다. 쉬움 또는 보통을 선택해 주세요.';
+      '악몽(Sonnet) 난이도는 아직 구현되지 않았습니다. 다른 난이도를 선택해 주세요.';
     return;
   }
   document.getElementById('start-overlay').classList.add('hidden');
