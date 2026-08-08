@@ -25,7 +25,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'node e2e/server.mjs',
+    command: 'node server.mjs',
     url: 'http://127.0.0.1:4173/whitechapel/',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
