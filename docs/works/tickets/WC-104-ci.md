@@ -1,7 +1,7 @@
 ---
 id: WC-104
 title: CI — 푸시마다 테스트 실행
-status: TODO
+status: IN_PROGRESS
 assignee: codex
 priority: P2
 scope: .github/workflows/test.yml
