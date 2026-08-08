@@ -1,7 +1,7 @@
 ---
 id: WC-108
 title: AI 결정 시간 벤치마크 + 성능 회귀 가드
-status: TODO
+status: IN_PROGRESS
 assignee: codex
 priority: P3
 scope: sim/**, tests/**, package.json (scripts만)
