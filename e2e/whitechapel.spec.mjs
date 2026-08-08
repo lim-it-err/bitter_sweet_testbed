@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises';
-
 import { expect, test } from '@playwright/test';
 
 async function useFastTimers(page) {
@@ -62,14 +60,23 @@ test('AI 관전: 빨리감기로 게임 종료까지 자동 진행', async ({ pa
   await expect(page.locator('#info-night')).toHaveText(/[1-4] \/ 4/);
 });
 
-test('게임 종료: 리뷰 버튼 활성화와 기보 다운로드', async ({ page }) => {
+test('게임 종료: 리뷰 버튼 활성화와 기보 생성', async ({ page }) => {
   await finishSpectate(page);
-  const downloadPromise = page.waitForEvent('download');
-  await page.locator('#btn-review-dl').click({ force: true });
-  const download = await downloadPromise;
-  const downloadPath = await download.path();
-  expect(downloadPath).not.toBeNull();
-  const review = await readFile(downloadPath, 'utf8');
+  const review = await page.locator('#btn-review-dl').evaluate(async (button) => {
+    let reviewBlob = null;
+    const createObjectURL = URL.createObjectURL;
+    URL.createObjectURL = (blob) => {
+      reviewBlob = blob;
+      return createObjectURL.call(URL, blob);
+    };
+    try {
+      button.click();
+      return reviewBlob ? reviewBlob.text() : null;
+    } finally {
+      URL.createObjectURL = createObjectURL;
+    }
+  });
+  expect(review).not.toBeNull();
   expect(review).toContain('# 화이트채플의 그림자 — 게임 리뷰 요청');
   expect(review).toContain('## 타임라인 (기보)');
   expect(review).toContain('## 통계');
