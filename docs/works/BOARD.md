@@ -6,7 +6,7 @@
 |---|---|---|---|---|
 | WC-101 | 테스트 하네스 구축 (npm test) | codex | P1 | DONE |
 | WC-102 | 시뮬레이션 CLI + 밸런스 리포트 | codex | P1 | DONE |
-| WC-103 | 스마트 경찰 베이스라인 (belief 기반) | codex | P2 | REVIEW |
+| WC-103 | 스마트 경찰 베이스라인 (belief 기반) | codex | P2 | DONE |
 | WC-104 | CI: 푸시마다 테스트 실행 | codex | P2 | TODO |
 | WC-105 | MCTS 잭 프로토타입 (오프라인 비교) | codex | P3 | TODO |
 | WC-106 | 단일 파일 빌드 스크립트 | codex | P2 | TODO |
@@ -18,3 +18,4 @@
 | WC-206 | 게임 리뷰(기보) 내보내기 — LLM 분석용 | claude | P1 | DONE |
 | WC-207 | AI 관전 모드 (경찰 AI vs 잭 AI) | claude | P2 | DONE |
 | WC-208 | 모바일 가로모드 UX | claude | P2 | DONE |
+| WC-209 | 어려움 잭 튜닝 (smart 경찰 기준 생존율 개선) | claude | P2 | TODO |
