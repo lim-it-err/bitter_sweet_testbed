@@ -17,7 +17,7 @@ async function startGame(page, { spectate = false } = {}) {
   await page.locator('#btn-start').click();
   await expect(page.locator('#modal')).toBeVisible();
   if (spectate) {
-    await page.locator('#btn-speed').click({ force: true });
+    await page.locator('#btn-speed').evaluate((button) => button.click());
     await expect(page.locator('#btn-speed')).toHaveText('▶ 보통 속도');
   }
   await page.locator('#modal-btn').click();
