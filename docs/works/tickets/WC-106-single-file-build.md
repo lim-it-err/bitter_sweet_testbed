@@ -1,7 +1,7 @@
 ---
 id: WC-106
 title: 단일 파일 빌드 스크립트
-status: TODO
+status: IN_PROGRESS
 assignee: codex
 priority: P2
 scope: build/**, package.json (scripts만)
