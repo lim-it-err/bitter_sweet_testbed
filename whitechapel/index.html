@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>화이트채플의 그림자 — 1인용 추적 게임</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕵️</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>화이트채플의 그림자</h1>
+    <p class="subtitle">1888년 런던 — 순찰대 5명을 지휘해 4번의 밤 안에 잭을 검거하세요</p>
+  </header>
+
+  <main>
+    <div id="board-wrap">
+      <svg id="board" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+
+    <aside id="panel">
+      <section class="card">
+        <h2>상황판</h2>
+        <dl>
+          <div><dt>밤</dt><dd id="info-night">-</dd></div>
+          <div><dt>잭의 이동</dt><dd id="info-moves">-</dd></div>
+          <div><dt>마지막 이동</dt><dd id="info-lastmove">-</dd></div>
+          <div><dt>남은 마차</dt><dd id="info-coach">-</dd></div>
+          <div><dt>남은 골목</dt><dd id="info-alley">-</dd></div>
+          <div><dt>난이도</dt><dd id="info-diff">-</dd></div>
+        </dl>
+        <p id="info-phase" class="phase"></p>
+      </section>
+
+      <section class="card">
+        <h2>지휘</h2>
+        <div class="mode-row">
+          <label><input type="radio" name="mode" value="move" checked /> 이동</label>
+          <label><input type="radio" name="mode" value="search" /> 수색</label>
+          <label><input type="radio" name="mode" value="arrest" /> 체포</label>
+        </div>
+        <p id="info-selected" class="hint"></p>
+        <p class="hint small">
+          순찰대(색 사각형)를 클릭해 선택 → 이동: 초록 교차점 클릭 /
+          수색·체포: 인접한 지점(원) 클릭. 순찰대마다 이동 1회(최대 2칸)와 행동 1회.
+        </p>
+        <label class="hint"><input type="checkbox" id="chk-belief" /> 잭의 추정 위치 표시 (근사)</label>
+        <div class="btn-row">
+          <button id="btn-endturn" disabled>턴 종료 (잭 이동)</button>
+          <button id="btn-newgame" class="ghost">새 게임</button>
+        </div>
+      </section>
+
+      <section class="card grow">
+        <h2>수사 일지</h2>
+        <div id="log"></div>
+      </section>
+    </aside>
+  </main>
+
+  <!-- 시작 화면 -->
+  <div id="start-overlay" class="overlay">
+    <div class="dialog">
+      <h2>화이트채플의 그림자</h2>
+      <p>
+        살인마 잭은 매일 밤 붉은 지점 중 한 곳에서 범행 후, 비밀 은신처로 돌아갑니다.<br />
+        순찰대를 움직여 <b>수색</b>으로 흔적을 좇고, 확신이 서면 <b>체포</b>하세요.<br />
+        잭이 4번의 밤을 모두 버티면 당신의 패배입니다.
+      </p>
+      <fieldset>
+        <legend>난이도</legend>
+        <label><input type="radio" name="difficulty" value="easy" checked />
+          쉬움 — 잭이 한 수 앞만 봅니다 (탐색 깊이 1)</label>
+        <label><input type="radio" name="difficulty" value="medium" />
+          보통 — 잭이 세 수 앞을 봅니다 (탐색 깊이 3)</label>
+        <label><input type="radio" name="difficulty" value="hard" />
+          어려움 — 깊이 4 + 밤마다 성향이 바뀌고, 경찰의 시야를 역이용합니다</label>
+        <label class="disabled"><input type="radio" name="difficulty" value="nightmare" />
+          악몽 — Claude Sonnet이 잭을 조종 <span class="tag">미구현</span></label>
+      </fieldset>
+      <p id="start-warn" class="warn"></p>
+      <button id="btn-start">게임 시작</button>
+    </div>
+  </div>
+
+  <!-- 안내 모달 -->
+  <div id="modal" class="overlay hidden">
+    <div class="dialog">
+      <h2 id="modal-title"></h2>
+      <p id="modal-body"></p>
+      <button id="modal-btn">확인</button>
+    </div>
+  </div>
+
+  <footer>
+    <p>
+      <a href="https://boardgamegeek.com/boardgame/59959/letters-from-whitechapel" target="_blank" rel="noopener">Letters from Whitechapel</a>에서
+      영감을 받은 비상업 팬 구현입니다. 보드 배치·그래픽·문구는 모두 자체 제작입니다.
+    </p>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
