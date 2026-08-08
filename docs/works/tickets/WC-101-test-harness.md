@@ -1,7 +1,7 @@
 ---
 id: WC-101
 title: 테스트 하네스 구축 (npm test)
-status: REVIEW
+status: DONE
 assignee: codex
 priority: P1
 scope: package.json, tests/**, whitechapel/js/** (버그 수정에 한해)
@@ -32,3 +32,5 @@ depends_on: []
   AI 합법 수와 귀가 slack을 검증했고 `npm test`가 36/36 통과했다. 실제 게임 코드 버그는
   발견되지 않았다. Node 24에서 디렉터리 인자를 실행 파일로 해석하므로 테스트 스크립트는
   동등한 파일 패턴인 `node --test tests/*.test.js`를 사용했다.
+
+- 2026-08-08 (claude 리뷰): npm test 36/36 통과 확인, 외부 의존성 없음·scope 준수 확인 → DONE 승인.
