@@ -1,10 +1,10 @@
 # 현황판
 
-갱신: 2026-08-08 (claude)
+갱신: 2026-08-09 (codex)
 
 | ID | 제목 | 담당 | 우선순위 | 상태 |
 |---|---|---|---|---|
-| WC-101 | 테스트 하네스 구축 (npm test) | codex | P1 | IN_PROGRESS |
+| WC-101 | 테스트 하네스 구축 (npm test) | codex | P1 | REVIEW |
 | WC-102 | 시뮬레이션 CLI + 밸런스 리포트 | codex | P1 | TODO |
 | WC-103 | 스마트 경찰 베이스라인 (belief 기반) | codex | P2 | TODO |
 | WC-104 | CI: 푸시마다 테스트 실행 | codex | P2 | TODO |

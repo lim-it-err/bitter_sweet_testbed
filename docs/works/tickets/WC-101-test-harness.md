@@ -1,7 +1,7 @@
 ---
 id: WC-101
 title: 테스트 하네스 구축 (npm test)
-status: IN_PROGRESS
+status: REVIEW
 assignee: codex
 priority: P1
 scope: package.json, tests/**, whitechapel/js/** (버그 수정에 한해)
@@ -27,3 +27,8 @@ depends_on: []
 - 테스트에서 발견된 실제 버그는 이 티켓에서 함께 수정하고 작업 로그에 기록.
 
 ## 작업 로그
+- 2026-08-09 (codex): 외부 의존성 없이 Node 내장 `node:test`/`assert` 기반 테스트 36개를 구축했다.
+  보드 생성 불변식, 일반/특수 이동, 수색/체포, 새벽 및 밤 종료, belief 정합성,
+  AI 합법 수와 귀가 slack을 검증했고 `npm test`가 36/36 통과했다. 실제 게임 코드 버그는
+  발견되지 않았다. Node 24에서 디렉터리 인자를 실행 파일로 해석하므로 테스트 스크립트는
+  동등한 파일 패턴인 `node --test tests/*.test.js`를 사용했다.
