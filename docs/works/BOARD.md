@@ -13,5 +13,6 @@
 | WC-201 | 맵 확장 (12×9, 순찰대 6, 살인지 10) | claude | P1 | DONE |
 | WC-202 | 어려움 난이도: LLM 없는 고급 AI | claude | P1 | DONE |
 | WC-203 | 난이도 밸런스 검증 (쉬움<보통<어려움) | claude | P1 | DONE |
-| WC-204 | GitHub Pages 배포 워크플로 + PR | claude | P1 | IN_PROGRESS |
+| WC-204 | GitHub Pages 배포 워크플로 + PR | claude | P1 | DONE |
 | WC-205 | 악몽 난이도: Sonnet 연동 설계 | claude | P3 | TODO |
+| WC-206 | 게임 리뷰(기보) 내보내기 — LLM 분석용 | claude | P1 | DONE |

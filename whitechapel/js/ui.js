@@ -1,5 +1,6 @@
 // SVG 렌더링과 사용자 입력 처리
 import { MOVES_PER_NIGHT, NIGHTS } from './game.js';
+import { buildReview } from './review.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const PATROL_COLORS = ['#4ea3ff', '#ffd23f', '#7ee081', '#ff8fd6', '#ffa94d', '#b9e5ff'];
@@ -98,6 +99,25 @@ export class UI {
     document.getElementById('chk-belief').addEventListener('change', (e) => {
       this.showBelief = e.target.checked;
       this.render();
+    });
+    document.getElementById('btn-review-dl').addEventListener('click', () => {
+      const md = buildReview(this.game);
+      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `whitechapel-review-night${this.game.night}-${this.game.winner === 'police' ? 'win' : 'lose'}.md`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    document.getElementById('btn-review-copy').addEventListener('click', async (e) => {
+      const md = buildReview(this.game);
+      try {
+        await navigator.clipboard.writeText(md);
+        e.target.textContent = '복사됨!';
+      } catch {
+        e.target.textContent = '복사 실패';
+      }
+      setTimeout(() => { e.target.textContent = '복사'; }, 1500);
     });
   }
 
@@ -213,6 +233,9 @@ export class UI {
     set('info-phase', phaseText[g.phase] ?? '');
 
     document.getElementById('btn-endturn').disabled = g.phase !== 'police';
+    const reviewReady = g.phase === 'gameOver';
+    document.getElementById('btn-review-dl').disabled = !reviewReady;
+    document.getElementById('btn-review-copy').disabled = !reviewReady;
 
     const sel = document.getElementById('info-selected');
     if (this.selectedPatrol !== null && g.phase === 'police') {
