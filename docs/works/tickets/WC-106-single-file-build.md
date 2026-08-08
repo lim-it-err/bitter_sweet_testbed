@@ -1,7 +1,7 @@
 ---
 id: WC-106
 title: 단일 파일 빌드 스크립트
-status: IN_PROGRESS
+status: REVIEW
 assignee: codex
 priority: P2
 scope: build/**, package.json (scripts만)
@@ -23,3 +23,7 @@ ES 모듈 구조라 `file://`로 못 연다. 오프라인/공유용 단일 HTML(
 - 원본 모듈 수정 없이(원본이 소스of truth) 빌드만으로 재생성 가능.
 
 ## 작업 로그
+- 2026-08-09 (codex): 현재 모듈 그래프(board, game/ai, police-ai, review, ui, main)를
+  순서대로 결합하고 CSS/JS를 인라인하는 무의존성 빌드 스크립트와 `npm run build`를 추가했다.
+  72,530 byte `whitechapel/standalone.html`을 재생성했으며 외부 CSS/모듈 참조가 없고 결합 JS를
+  `vm.Script`로 파싱 검증한다. 원본 모듈 변경 없이 재빌드 및 `npm test` 36/36 통과를 확인했다.
