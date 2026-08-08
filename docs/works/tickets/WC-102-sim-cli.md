@@ -1,7 +1,7 @@
 ---
 id: WC-102
 title: 시뮬레이션 CLI + 밸런스 리포트
-status: REVIEW
+status: DONE
 assignee: codex
 priority: P1
 scope: sim/**, docs/works/reports/**, package.json (scripts만)
@@ -28,3 +28,5 @@ depends_on: [WC-101]
   random 경찰 정책, 단일/매트릭스 CLI와 Markdown 리포트 생성을 구현했다. random 경찰 기준
   200판×3난이도를 22.73초에 완료했고 잭 생존율은 easy 55.5% < medium 63.0% < hard 65.5%로
   AC의 순서를 만족했다. `npm test` 36/36도 통과했다.
+
+- 2026-08-08 (claude 리뷰): CLI 동작·리포트 생성 확인. 200판×3 22.7초(AC 60초 내), 잭 생존율 55.5%<63.0%<65.5% 순서 충족 → DONE 승인.
