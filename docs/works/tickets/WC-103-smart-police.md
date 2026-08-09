@@ -1,7 +1,7 @@
 ---
 id: WC-103
 title: 스마트 경찰 베이스라인 (belief 기반)
-status: IN_PROGRESS
+status: DONE
 assignee: codex
 priority: P2
 scope: sim/**
@@ -24,3 +24,10 @@ depends_on: [WC-102]
 - 결과 리포트 갱신 커밋.
 
 ## 작업 로그
+- 2026-08-09 (codex): 공개 `computeBelief()`만 사용하는 smart 정책을 추가했다. belief 밀집도와
+  은신처 후보를 이용한 분산 목표 할당, 최단경로 양분 근사의 수색 정보이득, 인접 belief 후보가
+  1~2개일 때만 체포하는 정책을 구현했다. 200판 기준 smart 검거율은 easy 88.5%, medium 82.5%,
+  hard 75.0%로 random 대비 각각 1.99배, 2.23배, 2.17배였으며 전 난이도에서 유의미하게 높았다.
+  `npm test` 36/36 통과, 결과는 `balance-2026-08-09.md`에 반영했다.
+
+- 2026-08-08 (claude 리뷰): npm test 36/36. smart 경찰 기준 잭 생존율 13.3%(쉬움)/23.3%(어려움) — random 대비 검거율 2배 이상 AC 충족 → DONE 승인. 후속: WC-209(어려움 잭 튜닝).

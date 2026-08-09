@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>화이트채플의 그림자 — 1인용 추적 게임</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕵️</text></svg>" />
+  <style>
+/* 빅토리아 시대 밤거리 테마 */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #14121a;
+  --panel: #1f1b28;
+  --panel2: #2a2438;
+  --ink: #e8e0cc;
+  --dim: #9b917c;
+  --accent: #c19a49;
+  --danger: #d64545;
+  --ok: #58b368;
+}
+
+body {
+  background: radial-gradient(ellipse at 50% 0%, #201c2b 0%, var(--bg) 70%);
+  color: var(--ink);
+  font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', Pretendard, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header { text-align: center; padding: 14px 8px 6px; }
+header h1 {
+  font-size: 1.7rem;
+  letter-spacing: 0.35em;
+  color: var(--accent);
+  text-shadow: 0 0 18px rgba(193, 154, 73, 0.35);
+}
+.subtitle { color: var(--dim); font-size: 0.85rem; margin-top: 4px; }
+
+main {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+  padding: 10px 14px;
+  align-items: stretch;
+  min-height: 0;
+}
+
+#board-wrap {
+  flex: 1;
+  background: #17141f;
+  border: 1px solid #352d47;
+  border-radius: 10px;
+  padding: 6px;
+  display: flex;
+}
+#board { width: 100%; height: auto; max-height: calc(100vh - 130px); }
+
+/* ---- 보드 ---- */
+.street { fill: none; stroke: #4a4258; stroke-width: 2.5; }
+
+.circle { fill: #d9cba8; stroke: #8a7a55; stroke-width: 2; cursor: default; }
+.circle.murder-site { stroke: var(--danger); stroke-width: 2.5; }
+.circle-g.murder-current .circle { fill: #e05252; stroke: #ffdddd; }
+.circle-num {
+  font-size: 10px; fill: #3a3223; text-anchor: middle;
+  pointer-events: none; font-weight: 700;
+}
+.circle-g.murder-current .circle-num { fill: #fff; }
+.circle-g.actionable .circle {
+  cursor: pointer;
+  stroke: #7ee081; stroke-width: 3;
+  filter: drop-shadow(0 0 6px rgba(126, 224, 129, 0.8));
+}
+
+.crossing { fill: #565066; stroke: #211d2c; stroke-width: 1.5; }
+.crossing.reachable {
+  fill: #58b368; cursor: pointer;
+  filter: drop-shadow(0 0 6px rgba(88, 179, 104, 0.9));
+}
+
+.patrol { stroke: #10101a; stroke-width: 2; cursor: pointer; }
+.patrol-num {
+  font-size: 12px; font-weight: 800; fill: #10101a;
+  text-anchor: middle; pointer-events: none;
+}
+.patrol-g.selected .patrol {
+  stroke: #fff; stroke-width: 3;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+}
+.patrol-g.done { opacity: 0.55; }
+
+.marker-clue { fill: var(--danger); stroke: #fff; stroke-width: 1.2; }
+.marker-none { font-size: 11px; fill: #8d8496; text-anchor: middle; }
+
+.belief { fill: rgba(255, 166, 0, 0.16); stroke: rgba(255, 166, 0, 0.5); stroke-dasharray: 3 3; }
+
+.hideout-reveal { fill: none; stroke: #b95cff; stroke-width: 4; }
+.jack-path { fill: none; stroke-width: 3; opacity: 0.75; stroke-dasharray: 7 4; }
+
+/* ---- 패널 ---- */
+#panel {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+.card {
+  background: var(--panel);
+  border: 1px solid #352d47;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.card.grow { flex: 1; display: flex; flex-direction: column; min-height: 120px; }
+.card h2 {
+  font-size: 0.85rem; color: var(--accent);
+  letter-spacing: 0.2em; margin-bottom: 8px;
+}
+dl div { display: flex; justify-content: space-between; padding: 2px 0; font-size: 0.9rem; }
+dt { color: var(--dim); }
+.phase { margin-top: 8px; font-size: 0.9rem; color: var(--accent); min-height: 1.2em; }
+
+.mode-row { display: flex; gap: 12px; margin-bottom: 8px; }
+.mode-row label { cursor: pointer; font-size: 0.95rem; }
+.hint { color: var(--dim); font-size: 0.85rem; margin: 6px 0; display: block; }
+.hint.small { font-size: 0.78rem; line-height: 1.5; }
+
+.btn-row { display: flex; gap: 8px; margin-top: 10px; }
+button {
+  flex: 1;
+  background: var(--accent);
+  color: #1a1510;
+  border: none; border-radius: 8px;
+  padding: 10px 12px;
+  font-weight: 700; font-size: 0.95rem;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { filter: brightness(1.12); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.ghost { background: var(--panel2); color: var(--ink); border: 1px solid #4a4258; }
+
+#log { flex: 1; overflow-y: auto; font-size: 0.83rem; line-height: 1.55; min-height: 0; max-height: 34vh; }
+.log-item { padding: 2px 0; border-bottom: 1px dashed #2e2840; color: var(--dim); }
+.log-item.jack { color: #c9b8e8; }
+.log-item.murder { color: var(--danger); font-weight: 700; }
+.log-item.clue { color: #ffb347; font-weight: 700; }
+.log-item.night { color: var(--accent); }
+.log-item.win { color: var(--ok); font-weight: 700; }
+.log-item.lose { color: var(--danger); font-weight: 700; }
+
+/* ---- 오버레이 ---- */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(8, 6, 12, 0.82);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50;
+}
+.overlay.hidden { display: none; }
+.dialog {
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  max-width: 480px; width: calc(100% - 40px);
+  padding: 26px 28px;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(193, 154, 73, 0.25);
+}
+.dialog h2 { color: var(--accent); letter-spacing: 0.2em; margin-bottom: 14px; }
+.dialog p { line-height: 1.7; font-size: 0.95rem; margin-bottom: 14px; }
+.dialog fieldset {
+  border: 1px solid #4a4258; border-radius: 8px;
+  padding: 12px 16px; margin-bottom: 14px; text-align: left;
+}
+.dialog legend { color: var(--dim); padding: 0 6px; }
+.dialog fieldset label { display: block; padding: 5px 0; cursor: pointer; font-size: 0.92rem; }
+.dialog label.disabled { opacity: 0.5; }
+.tag {
+  background: var(--danger); color: #fff;
+  font-size: 0.7rem; padding: 1px 7px; border-radius: 10px; margin-left: 4px;
+}
+.warn { color: var(--danger); font-size: 0.85rem; min-height: 1.2em; }
+.dialog button { width: 100%; }
+
+footer { text-align: center; padding: 8px; color: #6e6580; font-size: 0.75rem; }
+footer a { color: #9b8ab5; }
+
+.hidden-btn { display: none; }
+.hidden-btn.visible { display: block; }
+
+/* 세로 화면 회전 안내 */
+#rotate-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--bg);
+  align-items: center; justify-content: center;
+  text-align: center;
+}
+#rotate-overlay.dismissed { display: none !important; }
+.rotate-box { padding: 30px; max-width: 320px; }
+.rotate-icon { font-size: 3rem; margin-bottom: 14px; animation: tilt 1.6s ease-in-out infinite; }
+@keyframes tilt { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-90deg); } }
+@media (prefers-reduced-motion: reduce) { .rotate-icon { animation: none; } }
+.rotate-box p { margin-bottom: 10px; }
+.rotate-box button { margin-top: 12px; width: 100%; }
+
+@media (orientation: portrait) and (max-width: 920px) {
+  #rotate-overlay { display: flex; }
+}
+
+/* 세로를 고집하는 경우의 폴백 레이아웃 */
+@media (max-width: 900px) {
+  main { flex-direction: column; }
+  #panel { width: 100%; }
+  #board { max-height: 60vh; }
+}
+
+/* 모바일 가로(낮은 높이) 최적화 */
+@media (max-height: 540px) and (orientation: landscape) {
+  header { padding: 6px 8px 2px; }
+  header h1 { font-size: 1.1rem; letter-spacing: 0.2em; }
+  .subtitle { display: none; }
+  main { padding: 6px 8px; gap: 8px; }
+  #panel { width: 250px; overflow-y: auto; }
+  .card { padding: 8px 10px; }
+  .card h2 { margin-bottom: 4px; }
+  .hint.small { display: none; }
+  #board { max-height: calc(100vh - 60px); }
+  #log { max-height: 20vh; }
+  button { padding: 7px 8px; font-size: 0.85rem; }
+  footer { display: none; }
+}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>화이트채플의 그림자</h1>
+    <p class="subtitle">1888년 런던 — 순찰대 5명을 지휘해 4번의 밤 안에 잭을 검거하세요</p>
+  </header>
+
+  <main>
+    <div id="board-wrap">
+      <svg id="board" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+
+    <aside id="panel">
+      <section class="card">
+        <h2>상황판</h2>
+        <dl>
+          <div><dt>밤</dt><dd id="info-night">-</dd></div>
+          <div><dt>잭의 이동</dt><dd id="info-moves">-</dd></div>
+          <div><dt>마지막 이동</dt><dd id="info-lastmove">-</dd></div>
+          <div><dt>남은 마차</dt><dd id="info-coach">-</dd></div>
+          <div><dt>남은 골목</dt><dd id="info-alley">-</dd></div>
+          <div><dt>난이도</dt><dd id="info-diff">-</dd></div>
+        </dl>
+        <p id="info-phase" class="phase"></p>
+      </section>
+
+      <section class="card">
+        <h2>지휘</h2>
+        <div class="mode-row">
+          <label><input type="radio" name="mode" value="move" checked /> 이동</label>
+          <label><input type="radio" name="mode" value="search" /> 수색</label>
+          <label><input type="radio" name="mode" value="arrest" /> 체포</label>
+        </div>
+        <p id="info-selected" class="hint"></p>
+        <p class="hint small">
+          순찰대(색 사각형)를 클릭해 선택 → 이동: 초록 교차점 클릭 /
+          수색·체포: 인접한 지점(원) 클릭. 순찰대마다 이동 1회(최대 2칸)와 행동 1회.
+        </p>
+        <label class="hint"><input type="checkbox" id="chk-belief" /> 잭의 추정 위치 표시 (근사)</label>
+        <div class="btn-row">
+          <button id="btn-endturn" disabled>턴 종료 (잭 이동)</button>
+          <button id="btn-speed" class="ghost hidden-btn">⏩ 빨리감기</button>
+          <button id="btn-newgame" class="ghost">새 게임</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>리뷰</h2>
+        <p class="hint small">
+          게임이 끝나면 전체 기보를 내보낼 수 있습니다. 파일을 AI(LLM) 채팅에 붙여넣거나
+          업로드하면 플레이 분석을 받을 수 있어요 — 규칙 설명이 함께 들어 있어 처음 보는 AI도 분석할 수 있습니다.
+        </p>
+        <div class="btn-row">
+          <button id="btn-review-dl" disabled>기보 파일 저장</button>
+          <button id="btn-review-copy" class="ghost" disabled>복사</button>
+        </div>
+      </section>
+
+      <section class="card grow">
+        <h2>수사 일지</h2>
+        <div id="log"></div>
+      </section>
+    </aside>
+  </main>
+
+  <!-- 시작 화면 -->
+  <div id="start-overlay" class="overlay">
+    <div class="dialog">
+      <h2>화이트채플의 그림자</h2>
+      <p>
+        살인마 잭은 매일 밤 붉은 지점 중 한 곳에서 범행 후, 비밀 은신처로 돌아갑니다.<br />
+        순찰대를 움직여 <b>수색</b>으로 흔적을 좇고, 확신이 서면 <b>체포</b>하세요.<br />
+        잭이 4번의 밤을 모두 버티면 당신의 패배입니다.
+      </p>
+      <fieldset>
+        <legend>모드</legend>
+        <label><input type="radio" name="pmode" value="play" checked />
+          직접 지휘 — 당신이 경찰 순찰대를 조작합니다</label>
+        <label><input type="radio" name="pmode" value="spectate" />
+          AI 관전 — 경찰도 AI가 지휘하는 대결을 지켜봅니다</label>
+      </fieldset>
+      <fieldset>
+        <legend>난이도</legend>
+        <label><input type="radio" name="difficulty" value="easy" checked />
+          쉬움 — 잭이 한 수 앞만 봅니다 (탐색 깊이 1)</label>
+        <label><input type="radio" name="difficulty" value="medium" />
+          보통 — 잭이 세 수 앞을 봅니다 (탐색 깊이 3)</label>
+        <label><input type="radio" name="difficulty" value="hard" />
+          어려움 — 깊이 4 + 밤마다 성향이 바뀌고, 경찰의 시야를 역이용합니다</label>
+        <label class="disabled"><input type="radio" name="difficulty" value="nightmare" />
+          악몽 — Claude Sonnet이 잭을 조종 <span class="tag">미구현</span></label>
+      </fieldset>
+      <p id="start-warn" class="warn"></p>
+      <button id="btn-start">게임 시작</button>
+    </div>
+  </div>
+
+  <!-- 세로 화면 회전 안내 -->
+  <div id="rotate-overlay">
+    <div class="rotate-box">
+      <div class="rotate-icon">📱↻</div>
+      <p><b>가로 모드로 돌려주세요</b></p>
+      <p class="hint small">이 게임은 넓은 지도를 쓰는 가로 화면에 최적화되어 있습니다.</p>
+      <button id="btn-rotate-dismiss" class="ghost">그래도 세로로 볼래요</button>
+    </div>
+  </div>
+
+  <!-- 안내 모달 -->
+  <div id="modal" class="overlay hidden">
+    <div class="dialog">
+      <h2 id="modal-title"></h2>
+      <p id="modal-body"></p>
+      <button id="modal-btn">확인</button>
+    </div>
+  </div>
+
+  <footer>
+    <p>
+      <a href="https://boardgamegeek.com/boardgame/59959/letters-from-whitechapel" target="_blank" rel="noopener">Letters from Whitechapel</a>에서
+      영감을 받은 비상업 팬 구현입니다. 보드 배치·그래픽·문구는 모두 자체 제작입니다.
+    </p>
+  </footer>
+
+  <script>
+// ── board.js ──
+// 오리지널 보드 생성기 — 시드 고정 절차 생성.
+// 원작 보드 데이터를 복제하지 않고, 교차점(사각형)-도로-지점(원) 구조만 차용한 독자 레이아웃.
+//
+// 구조:
+//  - 교차점(crossing): 격자 위 사각형. 경찰 순찰대가 서는 곳.
+//  - 지점(circle): 두 교차점 사이 도로 위의 원. 잭이 이동하는 곳.
+//  - 잭은 교차점을 "지나서" 인접 지점으로 이동한다. 그 교차점에 경찰이 있으면 통과 불가(마차 제외).
+//  - 블록(face): 격자 한 칸. 같은 블록에 접한 지점끼리는 '골목'으로 순간 이동 가능.
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const W = 12; // 교차점 격자 가로
+const H = 9; // 교차점 격자 세로
+const SP = 92; // 격자 간격(px)
+const MARGIN = 64;
+
+function bfsDist(adjList, n, start) {
+  const dist = new Array(n).fill(Infinity);
+  dist[start] = 0;
+  const q = [start];
+  for (let qi = 0; qi < q.length; qi++) {
+    const u = q[qi];
+    for (const v of adjList[u]) {
+      if (dist[v] === Infinity) {
+        dist[v] = dist[u] + 1;
+        q.push(v);
+      }
+    }
+  }
+  return dist;
+}
+
+function isConnected(nCross, edges) {
+  if (edges.length === 0) return false;
+  const adj = Array.from({ length: nCross }, () => []);
+  for (const [a, b] of edges) {
+    adj[a].push(b);
+    adj[b].push(a);
+  }
+  const seen = new Set([edges[0][0]]);
+  const q = [edges[0][0]];
+  while (q.length) {
+    const u = q.pop();
+    for (const v of adj[u]) if (!seen.has(v)) { seen.add(v); q.push(v); }
+  }
+  // 도로가 하나라도 붙은 교차점은 전부 연결되어야 함
+  const touched = new Set();
+  for (const [a, b] of edges) { touched.add(a); touched.add(b); }
+  for (const c of touched) if (!seen.has(c)) return false;
+  return true;
+}
+
+// 그래프 거리 기반 최원점(farthest-point) 샘플링 — 지점/교차점을 고르게 분산 선택
+function spreadSample(distMatrix, candidates, count, firstIndex) {
+  const chosen = [candidates[firstIndex % candidates.length]];
+  while (chosen.length < count) {
+    let best = -1, bestScore = -1;
+    for (const c of candidates) {
+      if (chosen.includes(c)) continue;
+      let minD = Infinity;
+      for (const s of chosen) minD = Math.min(minD, distMatrix[s][c]);
+      if (minD > bestScore) { bestScore = minD; best = c; }
+    }
+    chosen.push(best);
+  }
+  return chosen;
+}
+
+function generateBoard(seed = 18881109) {
+  const rnd = mulberry32(seed);
+  const cid = (gx, gy) => gy * W + gx;
+
+  const crossings = [];
+  for (let gy = 0; gy < H; gy++) {
+    for (let gx = 0; gx < W; gx++) {
+      crossings.push({
+        id: cid(gx, gy),
+        gx, gy,
+        x: MARGIN + gx * SP + (rnd() - 0.5) * 24,
+        y: MARGIN + gy * SP + (rnd() - 0.5) * 24,
+      });
+    }
+  }
+
+  // 후보 도로: 인접 교차점 쌍
+  let edges = [];
+  for (let gy = 0; gy < H; gy++) {
+    for (let gx = 0; gx < W; gx++) {
+      if (gx + 1 < W) edges.push([cid(gx, gy), cid(gx + 1, gy)]);
+      if (gy + 1 < H) edges.push([cid(gx, gy), cid(gx, gy + 1)]);
+    }
+  }
+
+  // 일부 도로 제거(불규칙한 골목길 느낌). 연결성과 교차점 최소 차수 2를 유지.
+  const removeTarget = Math.floor(edges.length * 0.15);
+  const order = edges.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  const removed = new Set();
+  const degree = new Array(crossings.length).fill(0);
+  for (const [a, b] of edges) { degree[a]++; degree[b]++; }
+  let removedCount = 0;
+  for (const idx of order) {
+    if (removedCount >= removeTarget) break;
+    const [a, b] = edges[idx];
+    if (degree[a] <= 2 || degree[b] <= 2) continue;
+    removed.add(idx);
+    const kept = edges.filter((_, i) => !removed.has(i));
+    if (!isConnected(crossings.length, kept)) {
+      removed.delete(idx);
+      continue;
+    }
+    degree[a]--; degree[b]--;
+    removedCount++;
+  }
+  edges = edges.filter((_, i) => !removed.has(i));
+
+  // 지점(원) = 남은 도로의 중간점
+  let circles = edges.map(([a, b]) => {
+    const ca = crossings[a], cb = crossings[b];
+    const dx = cb.x - ca.x, dy = cb.y - ca.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const off = (rnd() - 0.5) * 10;
+    return {
+      a, b,
+      x: (ca.x + cb.x) / 2 + (-dy / len) * off,
+      y: (ca.y + cb.y) / 2 + (dx / len) * off,
+    };
+  });
+  // 번호는 좌상단부터 (읽기 쉬운 배치)
+  circles.sort((p, q) => (p.y - q.y) || (p.x - q.x));
+  circles.forEach((c, i) => { c.id = i; c.num = i + 1; });
+
+  // 인접 구조
+  const circlesAt = Array.from({ length: crossings.length }, () => []);
+  for (const c of circles) { circlesAt[c.a].push(c.id); circlesAt[c.b].push(c.id); }
+
+  const crossingAdj = Array.from({ length: crossings.length }, () => []);
+  for (const c of circles) { crossingAdj[c.a].push(c.b); crossingAdj[c.b].push(c.a); }
+
+  const circleAdj = circles.map(() => []); // [{to, via}]
+  for (let v = 0; v < crossings.length; v++) {
+    const inc = circlesAt[v];
+    for (let i = 0; i < inc.length; i++) {
+      for (let j = i + 1; j < inc.length; j++) {
+        circleAdj[inc[i]].push({ to: inc[j], via: v });
+        circleAdj[inc[j]].push({ to: inc[i], via: v });
+      }
+    }
+  }
+
+  // 블록(골목): 격자 한 칸을 둘러싼 지점들
+  const edgeKey = (a, b) => (a < b ? `${a}-${b}` : `${b}-${a}`);
+  const circleByEdge = new Map();
+  for (const c of circles) circleByEdge.set(edgeKey(c.a, c.b), c.id);
+  const alleyMates = circles.map(() => new Set());
+  for (let gy = 0; gy < H - 1; gy++) {
+    for (let gx = 0; gx < W - 1; gx++) {
+      const corners = [cid(gx, gy), cid(gx + 1, gy), cid(gx, gy + 1), cid(gx + 1, gy + 1)];
+      const sides = [
+        edgeKey(corners[0], corners[1]),
+        edgeKey(corners[2], corners[3]),
+        edgeKey(corners[0], corners[2]),
+        edgeKey(corners[1], corners[3]),
+      ];
+      const members = sides.map((k) => circleByEdge.get(k)).filter((x) => x !== undefined);
+      for (const m of members) for (const n of members) if (m !== n) alleyMates[m].add(n);
+    }
+  }
+
+  // 거리 행렬
+  const circleAdjPlain = circleAdj.map((lst) => lst.map((e) => e.to));
+  const circleDist = circles.map((_, i) => bfsDist(circleAdjPlain, circles.length, i));
+  const crossingDist = crossings.map((_, i) => bfsDist(crossingAdj, crossings.length, i));
+
+  // 살인 후보지 10곳(붉은 지점) — 보드 전역에 분산
+  const allCircleIds = circles.map((c) => c.id);
+  const murderSites = spreadSample(circleDist, allCircleIds, 10, Math.floor(rnd() * circles.length));
+
+  // 경찰 시작 교차점 6곳 — 분산 배치 (맵이 커진 만큼 순찰대도 6명)
+  const allCrossIds = crossings.map((c) => c.id);
+  const policeStarts = spreadSample(crossingDist, allCrossIds, 6, Math.floor(rnd() * crossings.length));
+
+  return {
+    crossings, circles, circlesAt, crossingAdj, circleAdj,
+    alleyMates: alleyMates.map((s) => [...s]),
+    circleDist, crossingDist, murderSites, policeStarts,
+    viewW: MARGIN * 2 + (W - 1) * SP,
+    viewH: MARGIN * 2 + (H - 1) * SP,
+  };
+}
+
+// ── game.js ──
+// 게임 규칙 엔진 — 플레이어는 경찰(순찰대 5), AI는 잭.
+//
+// 한 밤(night)의 구조:
+//   1) 잭이 살인 후보지 중 한 곳에서 살인 (위치 공개)
+//   2) 잭 이동(비공개, 이동 종류만 공개) → 경찰 턴(순찰대별 최대 2칸 이동 + 수색/체포 1회) 반복
+//   3) 잭이 은신처에 도착하면 밤 종료. 15번째 이동까지 못 돌아가면 새벽에 검거(경찰 승)
+//   4) 4번의 밤을 모두 버티면 잭 승리
+//
+// 잭의 특수 이동(선언은 공개, 목적지는 비공개):
+//   - 마차(총 3회): 한 턴에 지점 2칸 이동, 경찰이 선 교차점도 통과 가능
+//   - 골목(총 2회): 같은 블록에 접한 다른 지점으로 순간 이동
+
+const MOVES_PER_NIGHT = 15;
+const NIGHTS = 4;
+
+const DIFFICULTY = {
+  easy: { key: 'easy', name: '쉬움', maxDepth: 1, noise: 35, dangerMul: 0.5, sonnet: false },
+  medium: { key: 'medium', name: '보통', maxDepth: 3, noise: 6, dangerMul: 1, sonnet: false },
+  // 어려움: LLM 없이 강하게 —
+  //  깊이 4 탐색 + 밤마다 무작위 성향(페르소나) + 경찰의 실제 지식(추정 위치)을 반영한
+  //  상대 모델 + 상위 수 무작위 혼합(패턴 읽기 방지)
+  hard: {
+    key: 'hard', name: '어려움', maxDepth: 4, noise: 0, sonnet: false,
+    personas: true, beliefModel: true, mixedTopK: true,
+  },
+  nightmare: { key: 'nightmare', name: '악몽 (Sonnet)', maxDepth: 0, noise: 0, sonnet: true },
+};
+
+class Game {
+  constructor(board, difficultyKey) {
+    this.board = board;
+    this.diff = DIFFICULTY[difficultyKey];
+    this.patrols = board.policeStarts.map((c, i) => ({
+      id: i, crossing: c, stepsLeft: 0, acted: true,
+    }));
+    this.night = 0;
+    this.jack = { hideout: null, pos: null, path: [], movesUsed: 0, coaches: 3, alleys: 2 };
+    this.usedMurderSites = [];
+    this.cluesPos = new Set(); // 이번 밤: 단서 발견된 지점
+    this.cluesNeg = new Set(); // 이번 밤: 수색했지만 흔적 없던 지점
+    this.negHistory = []; // {circle, atMove} — 추정 위치 계산용
+    this.arrestFails = []; // {circle, atMove}
+    this.declared = []; // 이번 밤 잭 이동 종류 목록: 'move'|'coach'|'alley'
+    this.allPaths = []; // 밤별 잭 이동 경로(게임 종료 시 공개)
+    this.events = []; // 리뷰(기보) 내보내기용 구조화 이벤트
+    this.log = [];
+    this.phase = 'setup'; // setup|jack|police|nightEnd|gameOver
+    this.winner = null; // 'police'|'jack'
+    this.lastJackDecl = null;
+  }
+
+  addLog(msg, cls = '') {
+    this.log.push({ msg, cls, night: this.night });
+  }
+
+  startGame() {
+    this.jack.hideout = chooseHideout(this);
+    this.addLog('잭이 은신처를 정했습니다. 위치는 게임이 끝날 때까지 비밀입니다.', 'jack');
+    this.startNight();
+  }
+
+  startNight() {
+    this.night++;
+    const site = chooseMurderSite(this);
+    this.usedMurderSites.push(site);
+    this.jack.pos = site;
+    this.jack.path = [site];
+    this.jack.movesUsed = 0;
+    this.declared = [];
+    this.cluesPos.clear();
+    this.cluesNeg.clear();
+    this.negHistory = [];
+    this.arrestFails = [];
+    this.persona = this.diff.personas ? pickPersona() : null;
+    this.phase = 'jack';
+    this.events.push({ t: 'night', night: this.night, site });
+    this.addLog(`${this.night}번째 밤 — ${this.board.circles[site].num}번 지점에서 살인이 일어났습니다!`, 'murder');
+  }
+
+  // 잭의 합법 이동 후보 (AI에서도 사용)
+  legalJackMoves(pos = this.jack.pos, coaches = this.jack.coaches, alleys = this.jack.alleys, patrols = this.patrols) {
+    const occupied = new Set(patrols.map((p) => p.crossing));
+    const out = [];
+    for (const { to, via } of this.board.circleAdj[pos]) {
+      if (!occupied.has(via)) out.push({ type: 'move', to, mid: null });
+    }
+    if (coaches > 0) {
+      const seen = new Set();
+      for (const { to: m } of this.board.circleAdj[pos]) {
+        for (const { to } of this.board.circleAdj[m]) {
+          if (to === pos || seen.has(to)) continue;
+          seen.add(to);
+          out.push({ type: 'coach', to, mid: m });
+        }
+      }
+    }
+    if (alleys > 0) {
+      for (const to of this.board.alleyMates[pos]) {
+        out.push({ type: 'alley', to, mid: null });
+      }
+    }
+    return out;
+  }
+
+  async jackTurn() {
+    const move = await decideJackMove(this);
+    if (!move) {
+      this.winner = 'police';
+      this.phase = 'gameOver';
+      this.allPaths.push([...this.jack.path]);
+      this.events.push({ t: 'end', winner: 'police', reason: 'trapped', night: this.night });
+      this.addLog('잭이 순찰대에 포위되어 움직이지 못했습니다. 검거 성공!', 'win');
+      return;
+    }
+    this.events.push({
+      t: 'jack', night: this.night, moveNo: this.jack.movesUsed + 1,
+      kind: move.type, from: this.jack.pos, mid: move.mid, to: move.to,
+    });
+    if (move.type === 'coach') {
+      this.jack.coaches--;
+      this.jack.path.push(move.mid, move.to);
+      this.addLog(`잭이 마차를 탔습니다. (이동 ${this.jack.movesUsed + 1}/${MOVES_PER_NIGHT}, 남은 마차 ${this.jack.coaches})`, 'jack');
+    } else if (move.type === 'alley') {
+      this.jack.alleys--;
+      this.jack.path.push(move.to);
+      this.addLog(`잭이 골목으로 사라졌습니다. (이동 ${this.jack.movesUsed + 1}/${MOVES_PER_NIGHT}, 남은 골목 ${this.jack.alleys})`, 'jack');
+    } else {
+      this.jack.path.push(move.to);
+      this.addLog(`잭이 이동했습니다. (이동 ${this.jack.movesUsed + 1}/${MOVES_PER_NIGHT})`, 'jack');
+    }
+    this.jack.pos = move.to;
+    this.jack.movesUsed++;
+    this.declared.push(move.type);
+    this.lastJackDecl = move.type;
+
+    if (this.jack.pos === this.jack.hideout) {
+      this.endNight();
+      return;
+    }
+    if (this.jack.movesUsed >= MOVES_PER_NIGHT) {
+      this.winner = 'police';
+      this.phase = 'gameOver';
+      this.allPaths.push([...this.jack.path]);
+      this.events.push({ t: 'end', winner: 'police', reason: 'dawn', night: this.night });
+      this.addLog('동이 텄습니다. 은신처로 돌아가지 못한 잭이 검거되었습니다!', 'win');
+      return;
+    }
+    this.phase = 'police';
+    for (const p of this.patrols) { p.stepsLeft = 2; p.acted = false; }
+  }
+
+  endNight() {
+    this.allPaths.push([...this.jack.path]);
+    this.events.push({ t: 'nightEnd', night: this.night, moves: this.jack.movesUsed });
+    if (this.night >= NIGHTS) {
+      this.winner = 'jack';
+      this.phase = 'gameOver';
+      this.events.push({ t: 'end', winner: 'jack', reason: 'survived', night: this.night });
+      this.addLog('잭이 마지막 밤에도 은신처로 사라졌습니다. 잭의 승리...', 'lose');
+    } else {
+      this.phase = 'nightEnd';
+      this.addLog(`잭이 은신처에 도착했습니다. ${this.night}번째 밤이 끝났습니다.`, 'night');
+    }
+  }
+
+  // 순찰대 이동: stepsLeft 이내로 도달 가능한 교차점 집합
+  patrolReachable(patrol) {
+    const occupied = new Set(this.patrols.filter((p) => p.id !== patrol.id).map((p) => p.crossing));
+    const dist = new Map([[patrol.crossing, 0]]);
+    const q = [patrol.crossing];
+    const out = new Set();
+    for (let qi = 0; qi < q.length; qi++) {
+      const u = q[qi];
+      const d = dist.get(u);
+      if (d >= patrol.stepsLeft) continue;
+      for (const v of this.board.crossingAdj[u]) {
+        if (!dist.has(v)) {
+          dist.set(v, d + 1);
+          q.push(v);
+          if (!occupied.has(v)) out.add(v);
+        }
+      }
+    }
+    return out;
+  }
+
+  movePatrol(patrolId, targetCrossing) {
+    const p = this.patrols[patrolId];
+    if (this.phase !== 'police' || !this.patrolReachable(p).has(targetCrossing)) return false;
+    this.events.push({
+      t: 'pmove', night: this.night, moveNo: this.jack.movesUsed,
+      pid: p.id, from: p.crossing, to: targetCrossing,
+    });
+    p.crossing = targetCrossing;
+    p.stepsLeft = 0;
+    return true;
+  }
+
+  patrolAdjacentCircles(patrol) {
+    return this.board.circlesAt[patrol.crossing];
+  }
+
+  policeAction(patrolId, kind, circleId) {
+    const p = this.patrols[patrolId];
+    if (this.phase !== 'police' || p.acted) return false;
+    if (!this.patrolAdjacentCircles(p).includes(circleId)) return false;
+    p.acted = true;
+    const num = this.board.circles[circleId].num;
+    if (kind === 'search') {
+      const found = this.jack.path.includes(circleId);
+      this.events.push({ t: 'search', night: this.night, moveNo: this.jack.movesUsed, pid: p.id, circle: circleId, found });
+      if (found) {
+        this.cluesPos.add(circleId);
+        this.addLog(`순찰대 ${p.id + 1}이(가) ${num}번 지점에서 단서를 발견했습니다!`, 'clue');
+      } else {
+        this.cluesNeg.add(circleId);
+        this.negHistory.push({ circle: circleId, atMove: this.jack.movesUsed });
+        this.addLog(`순찰대 ${p.id + 1}이(가) ${num}번 지점을 수색했지만 흔적이 없습니다.`, '');
+      }
+    } else if (kind === 'arrest') {
+      const success = this.jack.pos === circleId;
+      this.events.push({ t: 'arrest', night: this.night, moveNo: this.jack.movesUsed, pid: p.id, circle: circleId, success });
+      if (success) {
+        this.winner = 'police';
+        this.phase = 'gameOver';
+        this.allPaths.push([...this.jack.path]);
+        this.events.push({ t: 'end', winner: 'police', reason: 'arrest', night: this.night });
+        this.addLog(`순찰대 ${p.id + 1}이(가) ${num}번 지점에서 잭을 체포했습니다! 승리!`, 'win');
+      } else {
+        this.arrestFails.push({ circle: circleId, atMove: this.jack.movesUsed });
+        this.addLog(`순찰대 ${p.id + 1}이(가) ${num}번 지점을 덮쳤지만 아무도 없습니다.`, '');
+      }
+    }
+    return true;
+  }
+
+  endPoliceTurn() {
+    if (this.phase !== 'police') return;
+    this.phase = 'jack';
+  }
+
+  // 잭의 가능한 현재 위치(근사) — 이번 밤의 공개 정보만으로 계산.
+  // 선언된 이동 종류, 실패한 체포, 흔적 없던 수색을 반영. 경찰의 통행 차단은 무시(상위집합).
+  computeBelief() {
+    if (this.night === 0 || this.jack.path.length === 0) return new Set();
+    let layer = new Set([this.jack.path[0]]);
+    for (let t = 1; t <= this.jack.movesUsed; t++) {
+      const decl = this.declared[t - 1];
+      const next = new Set();
+      for (const pos of layer) {
+        if (decl === 'move') {
+          for (const { to } of this.board.circleAdj[pos]) next.add(to);
+        } else if (decl === 'coach') {
+          for (const { to: m } of this.board.circleAdj[pos]) {
+            for (const { to } of this.board.circleAdj[m]) if (to !== pos) next.add(to);
+          }
+        } else if (decl === 'alley') {
+          for (const to of this.board.alleyMates[pos]) next.add(to);
+        }
+      }
+      for (const { circle, atMove } of this.negHistory) {
+        if (atMove >= t) next.delete(circle);
+      }
+      for (const { circle, atMove } of this.arrestFails) {
+        if (atMove === t) next.delete(circle);
+      }
+      layer = next;
+    }
+    return layer;
+  }
+}
+
+// ── ai.js ──
+// 잭 AI.
+//
+// 쉬움/보통: 깊이 제한(max depth) 탐색 + 휴리스틱 평가.
+//   전략은 Scotland Yard MCTS 연구와 화이트채플 커뮤니티 전략을 참고했다:
+//   - 추정 위치 집합(belief set)을 넓게 유지해 경찰의 수색을 흐린다
+//   - 순찰대와 인접한 지점(체포 사정권)을 피한다
+//   - 은신처까지의 잔여 거리 대비 여유(slack)를 항상 확보한다
+//   - 마차는 포위 돌파용, 골목은 추적 끊기용으로 아껴 쓴다
+//   - 단서가 발견된 지점과 직선 경로를 피해 우회한다
+//
+// 어려움: Claude Sonnet에게 게임 상태를 넘겨 수를 결정하게 할 예정 — 아직 미구현.
+
+// ---------------------------------------------------------------------------
+// 어려움(Sonnet) 난이도 — 미구현 스텁
+// ---------------------------------------------------------------------------
+// TODO: 게임 상태(보드 그래프, 잭 위치/은신처, 순찰대 위치, 단서 이력)를 직렬화해
+// Claude Sonnet API(claude-sonnet-5)에 보내고, 응답으로 이동을 받는다.
+// GitHub Pages는 정적 호스팅이라 API 키를 안전하게 둘 곳이 없으므로
+// (1) 사용자가 자신의 API 키를 입력하는 방식 또는 (2) 서버리스 프록시가 필요하다.
+async function sonnetJackMove(_game) {
+  throw new Error('어려움(Sonnet) 난이도는 아직 구현되지 않았습니다.');
+}
+
+// ---------------------------------------------------------------------------
+// 은신처 / 살인 지점 선택
+// ---------------------------------------------------------------------------
+
+function chooseHideout(game) {
+  const { board } = game;
+  const murderSet = new Set(board.murderSites);
+  let best = -1, bestScore = -Infinity;
+  for (const c of board.circles) {
+    if (murderSet.has(c.id)) continue;
+    // 살인 후보지와 인접한 곳도 제외(너무 뻔한 위치)
+    if (board.circleAdj[c.id].some((e) => murderSet.has(e.to))) continue;
+    // 경찰 시작 지점에서 멀수록 좋음
+    const policeDist = Math.min(
+      ...game.patrols.map((p) => Math.min(
+        board.crossingDist[p.crossing][c.a],
+        board.crossingDist[p.crossing][c.b],
+      )),
+    );
+    // 살인 후보지까지의 거리가 6~12 사이인 곳이 이상적(도달 가능하되 뻔하지 않게)
+    let bandScore = 0;
+    for (const m of board.murderSites) {
+      const d = board.circleDist[c.id][m];
+      if (d >= 6 && d <= 12) bandScore += 2;
+      else if (d < 4) bandScore -= 3;
+    }
+    const score = policeDist * 3 + bandScore + Math.random() * 10;
+    if (score > bestScore) { bestScore = score; best = c.id; }
+  }
+  return best;
+}
+
+function chooseMurderSite(game) {
+  const { board, jack } = game;
+  const candidates = board.murderSites.filter((s) => !game.usedMurderSites.includes(s));
+  let best = candidates[0], bestScore = -Infinity;
+  for (const s of candidates) {
+    const dHide = board.circleDist[s][jack.hideout];
+    if (dHide > MOVES_PER_NIGHT - 3) continue; // 여유 없이는 안 됨
+    // 은신처와 적당히 떨어진 곳(6~13)이 좋음: 너무 가까우면 은신처가 들통난다
+    let score = dHide >= 6 && dHide <= 13 ? 20 : (dHide < 4 ? -20 : 5);
+    // 마지막 밤에는 가까운 곳도 감수(안전 귀가 우선)
+    if (game.night + 1 >= 4) score += Math.max(0, 10 - dHide);
+    const policeDist = Math.min(
+      ...game.patrols.map((p) => Math.min(
+        board.crossingDist[p.crossing][board.circles[s].a],
+        board.crossingDist[p.crossing][board.circles[s].b],
+      )),
+    );
+    score += policeDist * 2 + Math.random() * (game.diff.noise / 4 + 1);
+    if (score > bestScore) { bestScore = score; best = s; }
+  }
+  return best;
+}
+
+// ---------------------------------------------------------------------------
+// 잭의 성향(페르소나) — 어려움 난이도에서 밤마다 무작위로 바뀌어 패턴 읽기를 막는다
+// ---------------------------------------------------------------------------
+// ambW: 모호성(추정 위치 넓게 유지) / dangerW: 위험 회피 / homingW: 귀가 압박 / saveW: 특수 이동 절약
+
+const PERSONAS = [
+  { name: 'phantom', ambW: 2.0, dangerW: 1.2, homingW: 0.9, saveW: 1.0 }, // 안개처럼 — 흔적을 흐린다
+  { name: 'sprinter', ambW: 0.7, dangerW: 0.8, homingW: 1.6, saveW: 0.5 }, // 전력 질주 — 특수 이동을 아끼지 않는다
+  { name: 'drifter', ambW: 1.2, dangerW: 1.6, homingW: 1.0, saveW: 1.2 }, // 신중하게 — 경찰 근처엔 얼씬도 안 한다
+];
+
+function pickPersona() {
+  return PERSONAS[Math.floor(Math.random() * PERSONAS.length)];
+}
+
+const DEFAULT_WEIGHTS = { ambW: 1, dangerW: 1, homingW: 1, saveW: 1 };
+
+// ---------------------------------------------------------------------------
+// 이동 결정 (쉬움/보통/어려움: max depth 탐색)
+// ---------------------------------------------------------------------------
+
+async function decideJackMove(game) {
+  if (game.diff.sonnet) return sonnetJackMove(game);
+
+  const cands = feasibleMoves(game, game.jack.pos, game.jack.movesUsed, game.jack.coaches, game.jack.alleys, game.patrols);
+  if (cands.length === 0) return null; // 포위됨
+
+  // 추정 위치 집합 — 모호성 보너스와 (어려움) 상대 모델 양쪽에 사용
+  const belief = game.computeBelief();
+  game._rootBelief = belief;
+
+  // 어려움: belief 기반 경찰 예측은 후보 수와 무관하므로 탐색 레벨별로 미리 1회만 계산
+  if (game.diff.beliefModel && belief.size > 0) {
+    game._patrolsByLevel = [];
+    let cur = virtualPatrols(game.patrols);
+    for (let lvl = 0; lvl < Math.max(1, game.diff.maxDepth); lvl++) {
+      cur = advancePatrolsBelief(game.board, cur, belief);
+      game._patrolsByLevel.push(cur);
+    }
+  } else {
+    game._patrolsByLevel = null;
+  }
+
+  const scored = cands.map((cand) => {
+    let score = evaluateMove(game, cand, game.jack.movesUsed, game.jack.coaches, game.jack.alleys, virtualPatrols(game.patrols), game.diff.maxDepth);
+    score += ambiguityBonus(game, belief, cand) * weights(game).ambW;
+    score += (Math.random() - 0.5) * game.diff.noise;
+    return { cand, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+
+  // 어려움: 최선과 근접한 수들 사이에서 확률적으로 선택 — 결정론적 패턴을 없앤다
+  if (game.diff.mixedTopK && scored.length > 1) {
+    const near = scored.filter((s) => s.score >= scored[0].score - 12);
+    if (near.length > 1 && Math.random() < 0.35) {
+      return near[1 + Math.floor(Math.random() * (near.length - 1))].cand;
+    }
+  }
+  return scored[0].cand;
+}
+
+function weights(game) {
+  return game.persona ?? DEFAULT_WEIGHTS;
+}
+
+function virtualPatrols(patrols) {
+  return patrols.map((p) => ({ crossing: p.crossing }));
+}
+
+// 은신처 도달 가능성을 지키는 후보만 남긴다.
+// 경찰의 통행 차단으로 최단거리가 늘어질 수 있으므로 여유 2를 버퍼로 우선 확보하고,
+// 안 되면 버퍼 없이, 그래도 없으면 전체 반환(어차피 진 게임).
+function feasibleMoves(game, pos, movesUsed, coaches, alleys, patrols) {
+  const all = game.legalJackMoves(pos, coaches, alleys, patrols);
+  const remainAfter = MOVES_PER_NIGHT - movesUsed - 1;
+  const d = (m) => game.board.circleDist[m.to][game.jack.hideout];
+  const buffered = all.filter((m) => d(m) <= remainAfter - 2);
+  if (buffered.length > 0) return buffered;
+  const ok = all.filter((m) => d(m) <= remainAfter);
+  return ok.length > 0 ? ok : all;
+}
+
+// 선언된 이동 종류에 따라 경찰이 좁힐 수 있는 범위가 달라짐 → 벨리프가 넓게 유지되는 수를 선호
+function ambiguityBonus(game, belief, cand) {
+  const next = new Set();
+  for (const pos of belief) {
+    if (cand.type === 'move') {
+      for (const { to } of game.board.circleAdj[pos]) next.add(to);
+    } else if (cand.type === 'coach') {
+      for (const { to: m } of game.board.circleAdj[pos]) {
+        for (const { to } of game.board.circleAdj[m]) if (to !== pos) next.add(to);
+      }
+    } else {
+      for (const to of game.board.alleyMates[pos]) next.add(to);
+    }
+  }
+  return Math.min(next.size, 25) * 1.5;
+}
+
+// 깊이 제한 탐색: 잭은 최선 수를 고르고, 경찰은 "잭의 실제 위치를 아는" 비관적 모델로
+// 매 턴 2칸씩 접근한다고 가정한다. depth가 클수록(보통 난이도) 몇 수 앞의 포위망을 내다본다.
+function evaluateMove(game, cand, movesUsed, coaches, alleys, patrols, depth) {
+  const { board, jack } = game;
+  const pos = cand.to;
+  const movesAfter = movesUsed + 1;
+  const coachesAfter = coaches - (cand.type === 'coach' ? 1 : 0);
+  const alleysAfter = alleys - (cand.type === 'alley' ? 1 : 0);
+
+  // 은신처 도착 = 이번 밤 생존 확정.
+  // 어려움: 강한 경찰일수록 오래 돌아다니면 단서만 쌓인다 — 이른 귀가 페널티를 줄인다.
+  if (pos === jack.hideout) {
+    const earlyScale = game.diff.beliefModel ? 8 : 25;
+    const earlyPenalty = game.night < 4 ? Math.max(0, 6 - movesAfter) * earlyScale : 0;
+    return 900 - earlyPenalty;
+  }
+
+  const dHide = board.circleDist[pos][jack.hideout];
+  const remaining = MOVES_PER_NIGHT - movesAfter;
+  if (dHide > remaining) return -5000; // 새벽까지 못 돌아감
+
+  const w = weights(game);
+  let score = 0;
+  const slack = remaining - dHide;
+  // 여유가 줄어들수록 급격히 불안해진다 — 새벽 검거 방지가 최우선
+  if (slack >= 3) score += 24;
+  else if (slack === 2) score += 10;
+  else if (slack === 1) score -= 50;
+  else score -= 140;
+  // 밤이 깊어지면(9번째 이동 이후) 은신처 쪽으로 꾸준히 압박
+  if (movesAfter >= 9) score -= dHide * (movesAfter - 8) * 1.5 * w.homingW;
+
+  // 경찰이 다가온 뒤의 위험도 — 단, 귀가가 급하면 위험을 감수한다
+  // 어려움(beliefModel): 경찰은 잭의 실제 위치가 아니라 "추정 위치 집합"만 안다고
+  // 가정하고 접근을 예측 — 과잉 공포 없이 진짜 위험한 수만 피하게 된다
+  const dangerScale = (slack <= 2 ? 0.45 : 1) * w.dangerW * (game.diff.dangerMul ?? 1);
+  const level = Math.max(1, game.diff.maxDepth) - depth; // 0 = 루트 후보 평가
+  const advanced = game._patrolsByLevel
+    ? game._patrolsByLevel[Math.min(level, game._patrolsByLevel.length - 1)]
+    : advancePatrols(board, patrols, pos);
+  for (const p of advanced) {
+    const cd = Math.min(
+      board.crossingDist[p.crossing][board.circles[pos].a],
+      board.crossingDist[p.crossing][board.circles[pos].b],
+    );
+    if (cd === 0) score -= 120 * dangerScale; // 체포 사정권
+    else if (cd === 1) score -= 40 * dangerScale;
+    else if (cd === 2) score -= 12 * dangerScale;
+  }
+
+  // 단서가 찍힌 곳/이미 지나온 곳 회피
+  if (game.cluesPos.has(pos)) score -= 30 * w.ambW;
+  if (jack.path.includes(pos)) score -= 12;
+  // 어려움: 이전 밤들의 귀가 동선(마지막 3칸)을 다시 쓰면 잠복에 걸린다 — 접근로를 바꾼다
+  if (game.diff.beliefModel && dHide <= 4) {
+    for (const past of game.allPaths) {
+      if (past.length >= 2 && past.slice(-4, -1).includes(pos)) { score -= 35; break; }
+    }
+  }
+
+  // 특수 이동은 자원 — 위급하지 않으면 아낀다. 마지막 마차는 탈출용으로 비축.
+  if (cand.type === 'coach') score -= (coaches === 1 && movesAfter < 9 ? 80 : 28) * w.saveW;
+  if (cand.type === 'alley') score -= 22 * w.saveW;
+
+  if (depth > 1) {
+    const nextCands = feasibleMovesSim(game, pos, movesAfter, coachesAfter, alleysAfter, advanced);
+    if (nextCands.length === 0) {
+      score -= 400; // 다음 턴에 포위됨
+    } else {
+      let bestNext = -Infinity;
+      for (const nc of nextCands) {
+        const v = evaluateMove(game, nc, movesAfter, coachesAfter, alleysAfter, advanced, depth - 1);
+        if (v > bestNext) bestNext = v;
+      }
+      score += 0.6 * bestNext;
+    }
+  }
+  return score;
+}
+
+function feasibleMovesSim(game, pos, movesUsed, coaches, alleys, patrols) {
+  const all = game.legalJackMoves(pos, coaches, alleys, patrols);
+  const remainAfter = MOVES_PER_NIGHT - movesUsed - 1;
+  return all.filter((m) => game.board.circleDist[m.to][game.jack.hideout] <= remainAfter);
+}
+
+// 비관적 경찰 모델: 각 순찰대가 잭 위치와 가장 가까워지는 방향으로 2칸 이동
+function advancePatrols(board, patrols, jackPos) {
+  const target = board.circles[jackPos];
+  return patrols.map((p) => {
+    let cur = p.crossing;
+    for (let step = 0; step < 2; step++) {
+      let bestN = cur;
+      let bestD = Math.min(board.crossingDist[cur][target.a], board.crossingDist[cur][target.b]);
+      for (const n of board.crossingAdj[cur]) {
+        const d = Math.min(board.crossingDist[n][target.a], board.crossingDist[n][target.b]);
+        if (d < bestD) { bestD = d; bestN = n; }
+      }
+      cur = bestN;
+    }
+    return { crossing: cur };
+  });
+}
+
+// 현실적 경찰 모델(어려움): 순찰대는 잭의 실제 위치가 아니라 공개 정보로 계산되는
+// 추정 위치 집합(belief) 중 가장 가까운 지점으로 접근한다고 가정
+function advancePatrolsBelief(board, patrols, belief) {
+  const beliefDist = (crossing) => {
+    let m = Infinity;
+    for (const b of belief) {
+      const c = board.circles[b];
+      const d = Math.min(board.crossingDist[crossing][c.a], board.crossingDist[crossing][c.b]);
+      if (d < m) m = d;
+    }
+    return m;
+  };
+  return patrols.map((p) => {
+    let cur = p.crossing;
+    for (let step = 0; step < 2; step++) {
+      let bestN = cur, bestD = beliefDist(cur);
+      for (const n of board.crossingAdj[cur]) {
+        const d = beliefDist(n);
+        if (d < bestD) { bestD = d; bestN = n; }
+      }
+      cur = bestN;
+    }
+    return { crossing: cur };
+  });
+}
+
+// ── police-ai.js ──
+// AI 관전 모드용 경찰 AI — 공개 정보(추정 위치 집합)만 사용하는 공정한 정책.
+// 잭의 실제 위치/은신처는 절대 참조하지 않는다.
+
+// 순찰대별 목표 배정: 추정 위치 집합의 서로 다른 지점으로 분산 접근
+function assignTargets(game, belief) {
+  const b = game.board;
+  const targets = new Map(); // pid -> circleId
+  const claimed = new Set();
+  for (const p of game.patrols) {
+    let best = null, bestD = Infinity;
+    for (const c of belief) {
+      if (claimed.has(c) && claimed.size < belief.length) continue;
+      const d = Math.min(b.crossingDist[p.crossing][b.circles[c].a], b.crossingDist[p.crossing][b.circles[c].b]);
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    if (best !== null) { targets.set(p.id, best); claimed.add(best); }
+  }
+  return targets;
+}
+
+// 이동: 배정 목표에 가장 가까워지는 도달 가능 교차점
+function policeAiMove(game, patrol, targets) {
+  const b = game.board;
+  const target = targets.get(patrol.id);
+  if (target === undefined || patrol.stepsLeft <= 0) return null;
+  const tc = b.circles[target];
+  const distTo = (cr) => Math.min(b.crossingDist[cr][tc.a], b.crossingDist[cr][tc.b]);
+  let best = null, bestD = distTo(patrol.crossing);
+  for (const cr of game.patrolReachable(patrol)) {
+    const d = distTo(cr);
+    if (d < bestD) { bestD = d; best = cr; }
+  }
+  return best;
+}
+
+// 행동: 추정 집합이 충분히 좁고 인접에 후보가 있으면 체포, 아니면 정보가 되는 수색
+function policeAiAction(game, patrol, belief) {
+  if (patrol.acted) return null;
+  const adj = game.patrolAdjacentCircles(patrol);
+  if (adj.length === 0) return null;
+  const inBelief = adj.filter((c) => belief.has(c));
+  if (inBelief.length > 0 && belief.size <= 3) {
+    return { kind: 'arrest', circle: inBelief[0] };
+  }
+  if (inBelief.length > 0) {
+    // 아직 수색 안 한 후보 우선
+    const fresh = inBelief.filter((c) => !game.cluesPos.has(c) && !game.cluesNeg.has(c));
+    return { kind: 'search', circle: (fresh[0] ?? inBelief[0]) };
+  }
+  // 인접에 후보가 없으면 추정 집합에 가장 가까운 지점을 수색(경로 단서 노림)
+  const b = game.board;
+  let best = adj[0], bestD = Infinity;
+  for (const c of adj) {
+    for (const bl of belief) {
+      const d = b.circleDist[c][bl];
+      if (d < bestD) { bestD = d; best = c; }
+    }
+  }
+  return { kind: 'search', circle: best };
+}
+
+function planPoliceTargets(game) {
+  const belief = game.computeBelief();
+  return { belief, targets: assignTargets(game, belief) };
+}
+
+// ── review.js ──
+// 게임 리뷰(기보) 내보내기 — 게임 종료 후 전체 기록을 마크다운으로 만든다.
+// 이 파일을 처음 보는 LLM도 분석할 수 있도록 규칙 설명과 보드 그래프를 함께 담는다.
+
+const KIND_KO = { move: '도보', coach: '마차', alley: '골목' };
+const END_KO = {
+  arrest: '체포 성공 (경찰 승)',
+  dawn: '새벽까지 은신처 미귀환 (경찰 승)',
+  trapped: '잭 포위 (경찰 승)',
+  survived: `${NIGHTS}밤 생존 (잭 승)`,
+};
+
+function buildReview(game) {
+  const b = game.board;
+  const num = (cid) => b.circles[cid].num;
+  const crossName = (crid) => `C${crid}`;
+  const lines = [];
+  const push = (s = '') => lines.push(s);
+
+  // ── 1. LLM 안내 + 규칙 ──────────────────────────────────────────────
+  push('# 화이트채플의 그림자 — 게임 리뷰 요청');
+  push();
+  push('이 문서는 1인용 추적 보드게임 한 판의 **완전한 기보**입니다.');
+  push('당신(AI)에게 부탁: 아래 규칙을 읽고, 경찰(사람 플레이어)의 플레이를 리뷰해 주세요.');
+  push();
+  push('## 게임 규칙 (처음 보는 분을 위한 설명)');
+  push();
+  push('- 보드는 **지점(원, 번호)**과 **교차점(C번호)**으로 이뤄진 그래프입니다.');
+  push('  - 잭(AI)은 지점 위를 이동하고, 경찰 순찰대는 교차점 위에 섭니다.');
+  push('  - 두 지점은 교차점을 사이에 두고 인접합니다. 잭은 도보 이동 시 경찰이 서 있는 교차점을 통과할 수 없습니다.');
+  push(`- 게임은 ${NIGHTS}번의 밤. 각 밤: 잭이 살인 지점(공개)에서 출발해 비밀 은신처로 귀환해야 합니다.`);
+  push(`  - 잭은 한 턴에 1회 이동, 밤당 최대 ${MOVES_PER_NIGHT}회. ${MOVES_PER_NIGHT}회 안에 귀환 못 하면 검거(경찰 승).`);
+  push('  - 은신처는 4밤 내내 같은 곳이며 게임 끝까지 비밀. (이 기보에는 공개되어 있음)');
+  push('- 잭의 이동 종류(종류만 공개, 목적지는 비공개):');
+  push('  - **도보**: 인접 지점으로 1칸');
+  push('  - **마차**(게임당 3회): 한 턴에 2칸, 경찰 교차점 통과 가능');
+  push('  - **골목**(게임당 2회): 같은 블록(격자 한 칸)에 접한 다른 지점으로 순간 이동');
+  push('- 잭 이동 후 경찰 턴: 순찰대 각각 이동 1회(교차점 최대 2칸) + 행동 1회:');
+  push('  - **수색**: 자기 교차점에 인접한 지점 1곳에 "이번 밤 잭이 지나갔는지" 확인 (지나갔으면 단서)');
+  push('  - **체포**: 인접 지점 1곳을 덮침 — 잭이 *지금 그 지점에 있어야만* 성공');
+  push('- 승리: 경찰은 체포/포위/새벽 검거, 잭은 4밤 생존.');
+  push();
+
+  // ── 2. 이 판의 설정 ────────────────────────────────────────────────
+  push('## 이 판의 설정');
+  push();
+  push(`- 난이도: ${game.diff.name} (잭 AI)`);
+  push(`- 결과: **${END_KO[game.events.find((e) => e.t === 'end')?.reason] ?? '진행 중'}**`);
+  push(`- 잭의 은신처: **${num(game.jack.hideout)}번 지점** (게임 중에는 비밀이었음)`);
+  push(`- 살인 후보지(붉은 지점): ${b.murderSites.map(num).join(', ')}`);
+  push(`- 순찰대 시작 교차점: ${game.patrols.map((p, i) => `P${i + 1}=${crossName(b.policeStarts[i])}`).join(', ')}`);
+  push(`- 잭 특수 이동 잔여: 마차 ${game.jack.coaches}/3, 골목 ${game.jack.alleys}/2`);
+  push();
+
+  // ── 3. 타임라인 ────────────────────────────────────────────────────
+  push('## 타임라인 (기보)');
+  push();
+  push('표기: `잭#n`은 그 밤 n번째 이동. 경찰 행동은 잭 이동 n 직후의 대응입니다.');
+  push();
+  for (const e of game.events) {
+    if (e.t === 'night') {
+      push(`### ${e.night}번째 밤 — ${num(e.site)}번 지점에서 살인`);
+      push();
+    } else if (e.t === 'jack') {
+      const via = e.mid !== null && e.mid !== undefined ? ` (경유 ${num(e.mid)})` : '';
+      push(`- 잭#${e.moveNo}: ${KIND_KO[e.kind]} ${num(e.from)} → ${num(e.to)}${via}`);
+    } else if (e.t === 'pmove') {
+      push(`  - P${e.pid + 1} 이동 ${crossName(e.from)} → ${crossName(e.to)}`);
+    } else if (e.t === 'search') {
+      push(`  - P${e.pid + 1} 수색 ${num(e.circle)}번 → ${e.found ? '**단서 발견!**' : '흔적 없음'}`);
+    } else if (e.t === 'arrest') {
+      push(`  - P${e.pid + 1} 체포 시도 ${num(e.circle)}번 → ${e.success ? '**성공!**' : '실패(빈 곳)'}`);
+    } else if (e.t === 'nightEnd') {
+      push();
+      push(`> 잭이 이동 ${e.moves}회 만에 은신처(${num(game.jack.hideout)}번) 도착 — ${e.night}번째 밤 종료`);
+      push();
+    } else if (e.t === 'end') {
+      push();
+      push(`**게임 종료 (${e.night}번째 밤): ${END_KO[e.reason]}**`);
+      push();
+    }
+  }
+
+  // ── 4. 통계 ────────────────────────────────────────────────────────
+  const searches = game.events.filter((e) => e.t === 'search');
+  const arrests = game.events.filter((e) => e.t === 'arrest');
+  push('## 통계');
+  push();
+  push(`- 수색 ${searches.length}회 (단서 적중 ${searches.filter((e) => e.found).length}회)`);
+  push(`- 체포 시도 ${arrests.length}회 (성공 ${arrests.filter((e) => e.success).length}회)`);
+  push(`- 밤별 잭 이동 수: ${game.allPaths.map((p, i) => `${i + 1}밤 ${p.length - 1}회`).join(', ')}`);
+  push();
+
+  // ── 5. 보드 그래프 ─────────────────────────────────────────────────
+  push('## 보드 그래프 (분석용 데이터)');
+  push();
+  push('### 지점 인접 관계 — `지점번호: 인접지점(사이 교차점)`');
+  push();
+  push('```');
+  for (const c of b.circles) {
+    const adj = b.circleAdj[c.id].map((e) => `${num(e.to)}(${crossName(e.via)})`).join(' ');
+    push(`${c.num}: ${adj}`);
+  }
+  push('```');
+  push();
+  push('### 골목(같은 블록) 관계 — 잭이 골목 이동으로 오갈 수 있는 지점끼리');
+  push();
+  push('```');
+  const seen = new Set();
+  for (const c of b.circles) {
+    const mates = b.alleyMates[c.id].filter((m) => !seen.has(m));
+    if (mates.length) push(`${c.num}: ${mates.map(num).join(' ')}`);
+    seen.add(c.id);
+  }
+  push('```');
+  push();
+
+  // ── 6. 분석 가이드 ─────────────────────────────────────────────────
+  push('## 분석해 주세요');
+  push();
+  push('1. **총평**: 경찰 플레이의 등급(S~D)과 한 줄 요약');
+  push('2. **밤별 리뷰**: 각 밤의 전환점 — 수색 위치 선택이 정보를 얼마나 좁혔는지,');
+  push('   순찰대 배치가 잭의 실제 경로(위 기보에 공개됨)와 얼마나 어긋났는지');
+  push('3. **결정적 순간**: 잭을 잡을 수 있었는데 놓친 턴(체포 타이밍/위치), 반대로 좋은 판단이었던 턴');
+  push('4. **은신처 추리**: 공개된 정보만으로 은신처를 언제쯤 특정할 수 있었는지');
+  push('5. **다음 판 조언**: 이 플레이어의 습관을 근거로 한 구체적 개선점 3가지');
+  push();
+  push('분석 시 참고: 잭이 도보 이동을 선언한 턴에는 경찰이 선 교차점을 통과하지 못했다는 것도');
+  push('단서가 됩니다(경로 제약). 마차/골목 선언 턴은 추정 범위가 넓어집니다.');
+  push();
+  return lines.join('\n');
+}
+
+// ── ui.js ──
+// SVG 렌더링과 사용자 입력 처리
+
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+const PATROL_COLORS = ['#4ea3ff', '#ffd23f', '#7ee081', '#ff8fd6', '#ffa94d', '#b9e5ff'];
+const NIGHT_PATH_COLORS = ['#ff5c5c', '#ffb347', '#7ee081', '#4ea3ff'];
+
+function el(tag, attrs = {}, parent = null) {
+  const node = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (parent) parent.appendChild(node);
+  return node;
+}
+
+class UI {
+  constructor(game, callbacks) {
+    this.game = game;
+    this.cb = callbacks; // { onEndTurn, onNewGame, onNextNight }
+    this.selectedPatrol = null;
+    this.mode = 'move'; // move|search|arrest
+    this.showBelief = false;
+    this.buildBoard();
+    this.bindPanel();
+    this.render();
+  }
+
+  buildBoard() {
+    const b = this.game.board;
+    const svg = document.getElementById('board');
+    svg.innerHTML = '';
+    svg.setAttribute('viewBox', `0 0 ${b.viewW} ${b.viewH}`);
+
+    this.gEdges = el('g', {}, svg);
+    this.gPaths = el('g', {}, svg); // 게임 종료 시 잭 경로 공개
+    this.gBelief = el('g', {}, svg);
+    this.gHighlight = el('g', {}, svg);
+    this.gCircles = el('g', {}, svg);
+    this.gCrossings = el('g', {}, svg);
+    this.gMarkers = el('g', {}, svg);
+    this.gPatrols = el('g', {}, svg);
+
+    // 도로
+    for (const c of b.circles) {
+      const ca = b.crossings[c.a], cb = b.crossings[c.b];
+      el('path', {
+        d: `M${ca.x},${ca.y} Q${c.x},${c.y} ${cb.x},${cb.y}`,
+        class: 'street',
+      }, this.gEdges);
+    }
+
+    // 지점(원)
+    this.circleNodes = [];
+    const murderSet = new Set(b.murderSites);
+    for (const c of b.circles) {
+      const g = el('g', { class: 'circle-g', 'data-id': c.id }, this.gCircles);
+      el('circle', {
+        cx: c.x, cy: c.y, r: 13,
+        class: 'circle' + (murderSet.has(c.id) ? ' murder-site' : ''),
+      }, g);
+      const t = el('text', { x: c.x, y: c.y + 3.5, class: 'circle-num' }, g);
+      t.textContent = c.num;
+      g.addEventListener('click', () => this.onCircleClick(c.id));
+      this.circleNodes.push(g);
+    }
+
+    // 교차점(사각형)
+    this.crossingNodes = [];
+    for (const cr of b.crossings) {
+      const r = el('rect', {
+        x: cr.x - 6, y: cr.y - 6, width: 12, height: 12,
+        class: 'crossing', 'data-id': cr.id,
+        transform: `rotate(45 ${cr.x} ${cr.y})`,
+      }, this.gCrossings);
+      r.addEventListener('click', () => this.onCrossingClick(cr.id));
+      this.crossingNodes.push(r);
+    }
+
+    // 순찰대 말
+    this.patrolNodes = this.game.patrols.map((p) => {
+      const g = el('g', { class: 'patrol-g', 'data-id': p.id }, this.gPatrols);
+      el('rect', {
+        x: -10, y: -10, width: 20, height: 20, rx: 4,
+        class: 'patrol', fill: PATROL_COLORS[p.id],
+      }, g);
+      const t = el('text', { x: 0, y: 4.5, class: 'patrol-num' }, g);
+      t.textContent = p.id + 1;
+      g.addEventListener('click', (e) => { e.stopPropagation(); this.onPatrolClick(p.id); });
+      return g;
+    });
+  }
+
+  bindPanel() {
+    document.querySelectorAll('input[name="mode"]').forEach((r) => {
+      r.addEventListener('change', () => { this.mode = r.value; this.render(); });
+    });
+    document.getElementById('btn-endturn').addEventListener('click', () => this.cb.onEndTurn());
+    document.getElementById('btn-newgame').addEventListener('click', () => this.cb.onNewGame());
+    document.getElementById('chk-belief').addEventListener('change', (e) => {
+      this.showBelief = e.target.checked;
+      this.render();
+    });
+    document.getElementById('btn-review-dl').addEventListener('click', () => {
+      const md = buildReview(this.game);
+      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `whitechapel-review-night${this.game.night}-${this.game.winner === 'police' ? 'win' : 'lose'}.md`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    document.getElementById('btn-review-copy').addEventListener('click', async (e) => {
+      const md = buildReview(this.game);
+      try {
+        await navigator.clipboard.writeText(md);
+        e.target.textContent = '복사됨!';
+      } catch {
+        e.target.textContent = '복사 실패';
+      }
+      setTimeout(() => { e.target.textContent = '복사'; }, 1500);
+    });
+  }
+
+  onPatrolClick(pid) {
+    if (this.game.phase !== 'police' || this.game.spectate) return;
+    this.selectedPatrol = this.selectedPatrol === pid ? null : pid;
+    this.render();
+  }
+
+  onCrossingClick(cid) {
+    if (this.game.phase !== 'police' || this.game.spectate || this.selectedPatrol === null || this.mode !== 'move') return;
+    if (this.game.movePatrol(this.selectedPatrol, cid)) this.render();
+  }
+
+  onCircleClick(circleId) {
+    if (this.game.phase !== 'police' || this.game.spectate || this.selectedPatrol === null) return;
+    if (this.mode !== 'search' && this.mode !== 'arrest') return;
+    if (this.game.policeAction(this.selectedPatrol, this.mode, circleId)) {
+      this.selectedPatrol = null;
+      this.cb.onStateChanged();
+      this.render();
+    }
+  }
+
+  render() {
+    const g = this.game;
+    const b = g.board;
+
+    // 순찰대 위치/선택 표시
+    g.patrols.forEach((p, i) => {
+      const cr = b.crossings[p.crossing];
+      this.patrolNodes[i].setAttribute('transform', `translate(${cr.x},${cr.y})`);
+      this.patrolNodes[i].classList.toggle('selected', this.selectedPatrol === i);
+      this.patrolNodes[i].classList.toggle('done', g.phase === 'police' && p.stepsLeft === 0 && p.acted);
+    });
+
+    // 하이라이트
+    this.gHighlight.innerHTML = '';
+    this.crossingNodes.forEach((n) => n.classList.remove('reachable'));
+    this.circleNodes.forEach((n) => n.classList.remove('actionable', 'murder-current'));
+    if (g.phase === 'police' && this.selectedPatrol !== null) {
+      const p = g.patrols[this.selectedPatrol];
+      if (this.mode === 'move' && p.stepsLeft > 0) {
+        for (const cid of g.patrolReachable(p)) this.crossingNodes[cid].classList.add('reachable');
+      }
+      if ((this.mode === 'search' || this.mode === 'arrest') && !p.acted) {
+        for (const c of g.patrolAdjacentCircles(p)) this.circleNodes[c].classList.add('actionable');
+      }
+    }
+
+    // 이번 밤 살인 지점
+    if (g.night > 0 && g.jack.path.length > 0) {
+      const site = g.jack.path[0];
+      this.circleNodes[site].classList.add('murder-current');
+    }
+
+    // 단서 마커
+    this.gMarkers.innerHTML = '';
+    for (const cid of g.cluesPos) {
+      const c = b.circles[cid];
+      el('circle', { cx: c.x + 10, cy: c.y - 10, r: 5, class: 'marker-clue' }, this.gMarkers);
+    }
+    for (const cid of g.cluesNeg) {
+      const c = b.circles[cid];
+      const m = el('text', { x: c.x + 10, y: c.y - 6, class: 'marker-none' }, this.gMarkers);
+      m.textContent = '✕';
+    }
+
+    // 추정 위치(근사) 오버레이
+    this.gBelief.innerHTML = '';
+    if (this.showBelief && g.phase !== 'gameOver' && g.night > 0) {
+      for (const cid of g.computeBelief()) {
+        const c = b.circles[cid];
+        el('circle', { cx: c.x, cy: c.y, r: 17, class: 'belief' }, this.gBelief);
+      }
+    }
+
+    // 게임 종료: 은신처와 밤별 경로 공개
+    this.gPaths.innerHTML = '';
+    if (g.phase === 'gameOver') {
+      const h = b.circles[g.jack.hideout];
+      el('circle', { cx: h.x, cy: h.y, r: 19, class: 'hideout-reveal' }, this.gPaths);
+      g.allPaths.forEach((path, ni) => {
+        if (path.length < 2) return;
+        const pts = path.map((cid) => `${b.circles[cid].x},${b.circles[cid].y}`).join(' ');
+        el('polyline', {
+          points: pts, class: 'jack-path',
+          stroke: NIGHT_PATH_COLORS[ni % NIGHT_PATH_COLORS.length],
+        }, this.gPaths);
+      });
+    }
+
+    this.renderPanel();
+  }
+
+  renderPanel() {
+    const g = this.game;
+    const set = (id, txt) => { document.getElementById(id).textContent = txt; };
+    set('info-night', g.night > 0 ? `${g.night} / ${NIGHTS}` : '-');
+    set('info-moves', `${g.jack.movesUsed} / ${MOVES_PER_NIGHT}`);
+    set('info-coach', g.jack.coaches);
+    set('info-alley', g.jack.alleys);
+    set('info-diff', g.diff.name);
+    set('info-lastmove', g.lastJackDecl === 'coach' ? '마차' : g.lastJackDecl === 'alley' ? '골목' : g.lastJackDecl === 'move' ? '도보' : '-');
+
+    const phaseText = {
+      setup: '준비 중',
+      jack: '잭이 움직이는 중...',
+      police: g.spectate ? 'AI 경찰이 수사 중...' : '경찰 턴 — 순찰대를 지휘하세요',
+      nightEnd: '밤이 끝났습니다',
+      gameOver: g.winner === 'police'
+        ? (g.spectate ? 'AI 경찰이 잭을 검거했습니다' : '승리! 잭을 검거했습니다')
+        : '잭이 사라졌습니다...',
+    };
+    set('info-phase', phaseText[g.phase] ?? '');
+
+    document.getElementById('btn-endturn').disabled = g.phase !== 'police' || !!g.spectate;
+    const reviewReady = g.phase === 'gameOver';
+    document.getElementById('btn-review-dl').disabled = !reviewReady;
+    document.getElementById('btn-review-copy').disabled = !reviewReady;
+
+    const sel = document.getElementById('info-selected');
+    if (this.selectedPatrol !== null && g.phase === 'police') {
+      const p = g.patrols[this.selectedPatrol];
+      sel.textContent = `순찰대 ${p.id + 1} — 이동 ${p.stepsLeft > 0 ? '가능(최대 2칸)' : '완료'} · 행동 ${p.acted ? '완료' : '가능'}`;
+    } else {
+      sel.textContent = g.phase === 'police' ? '순찰대를 클릭해 선택하세요' : '';
+    }
+
+    // 로그
+    const logEl = document.getElementById('log');
+    logEl.innerHTML = '';
+    for (const item of this.game.log.slice(-60)) {
+      const d = document.createElement('div');
+      d.className = `log-item ${item.cls}`;
+      d.textContent = item.msg;
+      logEl.appendChild(d);
+    }
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  showModal(title, body, buttonText, onClose) {
+    const overlay = document.getElementById('modal');
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').innerHTML = body;
+    const btn = document.getElementById('modal-btn');
+    btn.textContent = buttonText;
+    overlay.classList.remove('hidden');
+    btn.onclick = () => {
+      overlay.classList.add('hidden');
+      onClose?.();
+    };
+  }
+}
+
+// ── main.js ──
+// 보드는 시드 고정 — 실제 보드게임처럼 항상 같은 지도를 사용한다.
+const BOARD_SEED = 18881109;
+
+let game = null;
+let ui = null;
+let spectateSpeed = 500; // ms, 빨리감기 시 80
+let spectateRun = 0; // 새 게임 시작 시 이전 관전 루프 중단용 토큰
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function startScreen() {
+  spectateRun++;
+  document.getElementById('start-overlay').classList.remove('hidden');
+}
+
+// 모바일에서 가로 방향 고정 시도 (지원 브라우저에서만, 실패해도 무시)
+async function tryLandscape() {
+  try {
+    if (screen.orientation?.lock && /Mobi|Android/i.test(navigator.userAgent)) {
+      await document.documentElement.requestFullscreen?.();
+      await screen.orientation.lock('landscape');
+    }
+  } catch { /* iOS 등 미지원 — 회전 안내 오버레이가 대신한다 */ }
+}
+
+document.getElementById('btn-rotate-dismiss').addEventListener('click', () => {
+  document.getElementById('rotate-overlay').classList.add('dismissed');
+});
+
+document.getElementById('btn-speed').addEventListener('click', (e) => {
+  spectateSpeed = spectateSpeed > 100 ? 80 : 500;
+  e.target.textContent = spectateSpeed > 100 ? '⏩ 빨리감기' : '▶ 보통 속도';
+});
+
+document.getElementById('btn-start').addEventListener('click', () => {
+  const diff = document.querySelector('input[name="difficulty"]:checked').value;
+  const spectate = document.querySelector('input[name="pmode"]:checked').value === 'spectate';
+  if (diff === 'nightmare') {
+    document.getElementById('start-warn').textContent =
+      '악몽(Sonnet) 난이도는 아직 구현되지 않았습니다. 다른 난이도를 선택해 주세요.';
+    return;
+  }
+  tryLandscape();
+  document.getElementById('start-overlay').classList.add('hidden');
+  newGame(diff, spectate);
+});
+
+function newGame(diffKey, spectate) {
+  const board = generateBoard(BOARD_SEED);
+  game = new Game(board, diffKey);
+  game.spectate = spectate;
+  ui = new UI(game, {
+    onEndTurn: endTurn,
+    onNewGame: startScreen,
+    onStateChanged: checkGameOver,
+  });
+  const speedBtn = document.getElementById('btn-speed');
+  speedBtn.classList.toggle('visible', spectate);
+  if (spectate) {
+    ui.showBelief = true;
+    document.getElementById('chk-belief').checked = true;
+  }
+  game.startGame();
+  ui.render();
+  const site = game.board.circles[game.jack.path[0]].num;
+  ui.showModal(
+    `${game.night}번째 밤`,
+    `<b>${site}번 지점</b>에서 살인이 일어났습니다.<br>잭은 이곳에서 출발해 은신처로 향합니다.<br>`
+      + (spectate
+        ? 'AI 경찰(주황 점선 = 경찰의 추정 범위)이 잭을 추적하는 모습을 관전합니다.'
+        : '이동 15번 안에 돌아가지 못하면 잭은 검거됩니다.'),
+    spectate ? '관전 시작' : '추적 시작',
+    () => (spectate ? runSpectate() : runJackTurn()),
+  );
+}
+
+// ── 직접 지휘 모드 ─────────────────────────────────────────────
+async function runJackTurn() {
+  if (!game || game.phase !== 'jack') return;
+  try {
+    await game.jackTurn();
+  } catch (err) {
+    ui.showModal('오류', String(err.message ?? err), '확인', startScreen);
+    return;
+  }
+  ui.render();
+
+  if (game.phase === 'nightEnd') {
+    ui.showModal(
+      `${game.night}번째 밤 종료`,
+      `잭이 은신처로 사라졌습니다.<br>단서 마커가 정리되고 다음 밤이 시작됩니다.<br>순찰대 위치는 유지됩니다.`,
+      '다음 밤으로',
+      () => {
+        game.startNight();
+        ui.selectedPatrol = null;
+        ui.render();
+        const site = game.board.circles[game.jack.path[0]].num;
+        ui.showModal(
+          `${game.night}번째 밤`,
+          `<b>${site}번 지점</b>에서 새로운 살인이 일어났습니다.`,
+          '추적 시작',
+          () => runJackTurn(),
+        );
+      },
+    );
+  } else if (game.phase === 'gameOver') {
+    showGameOver();
+  }
+  // phase === 'police' 이면 플레이어 입력 대기
+}
+
+function endTurn() {
+  if (!game || game.phase !== 'police' || game.spectate) return;
+  game.endPoliceTurn();
+  ui.selectedPatrol = null;
+  ui.render();
+  runJackTurn();
+}
+
+// ── AI 관전 모드: 경찰 AI vs 잭 AI ────────────────────────────
+async function runSpectate() {
+  const token = ++spectateRun;
+  const alive = () => game && game.spectate && token === spectateRun;
+  while (alive() && game.phase !== 'gameOver') {
+    if (game.phase === 'jack') {
+      await game.jackTurn();
+      ui.render();
+      await sleep(spectateSpeed);
+    } else if (game.phase === 'police') {
+      const { belief, targets } = planPoliceTargets(game);
+      for (const p of game.patrols) {
+        if (!alive() || game.phase !== 'police') break;
+        const mv = policeAiMove(game, p, targets);
+        if (mv !== null) {
+          game.movePatrol(p.id, mv);
+          ui.render();
+          await sleep(spectateSpeed / 2);
+        }
+        if (!alive() || game.phase !== 'police') break;
+        const act = policeAiAction(game, p, belief);
+        if (act) {
+          game.policeAction(p.id, act.kind, act.circle);
+          ui.render();
+          await sleep(spectateSpeed / 2);
+        }
+      }
+      if (alive() && game.phase === 'police') game.endPoliceTurn();
+    } else if (game.phase === 'nightEnd') {
+      game.startNight();
+      ui.render();
+      await sleep(Math.max(spectateSpeed, 600));
+    }
+  }
+  if (alive() && game.phase === 'gameOver') showGameOver();
+}
+
+function checkGameOver() {
+  if (game.phase === 'gameOver') showGameOver();
+}
+
+function showGameOver() {
+  ui.render();
+  const hideNum = game.board.circles[game.jack.hideout].num;
+  const who = game.spectate ? 'AI 경찰이' : '당신이';
+  if (game.winner === 'police') {
+    ui.showModal(
+      '검거 성공!',
+      `${who} 잭을 붙잡았습니다. 은신처는 <b>${hideNum}번 지점</b>이었습니다.<br>지도에 밤별 이동 경로가 공개되었습니다.<br>오른쪽 <b>리뷰</b>에서 기보를 내보내 AI 분석을 받아보세요.`,
+      '새 게임',
+      startScreen,
+    );
+  } else {
+    ui.showModal(
+      '잭이 사라졌다...',
+      `잭이 ${NIGHTS}번의 밤을 모두 버텨냈습니다.<br>은신처는 <b>${hideNum}번 지점</b>이었습니다.<br>지도에 밤별 이동 경로가 공개되었습니다.<br>오른쪽 <b>리뷰</b>에서 기보를 내보내 AI 분석을 받아보세요.`,
+      '새 게임',
+      startScreen,
+    );
+  }
+}
+
+startScreen();
+  </script>
+</body>
+</html>

@@ -4,6 +4,12 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "sim": "node sim/run.mjs --matrix --games 200 --report"
+    "sim": "node sim/run.mjs --matrix --games 200 --report",
+    "bench": "node sim/bench.mjs",
+    "build": "node build/bundle.mjs",
+    "e2e": "playwright test --config=e2e/playwright.config.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }
