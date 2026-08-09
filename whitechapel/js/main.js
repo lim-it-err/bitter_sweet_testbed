@@ -144,7 +144,7 @@ async function runSpectate() {
         if (!alive() || game.phase !== 'police') break;
         const act = policeAiAction(game, p, belief);
         if (act) {
-          game.policeAction(p.id, act.kind, act.circle);
+          game.policeAction(p.id, act.kind, act.circle ?? null);
           ui.render();
           await sleep(spectateSpeed / 2);
         }

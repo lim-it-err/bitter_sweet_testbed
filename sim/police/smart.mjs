@@ -136,9 +136,10 @@ export const smartPolice = {
         attempted.add(circle);
         game.policeAction(patrol.id, 'arrest', circle);
       } else {
+        // 수색은 규칙상 인접 지점 전체를 번호 순서로 훑는다 (지점 지정 불필요)
         const circle = chooseSearch(game, adjacent, currentBelief, searched);
         searched.add(circle);
-        game.policeAction(patrol.id, 'search', circle);
+        game.policeAction(patrol.id, 'search');
       }
     }
     game.endPoliceTurn();

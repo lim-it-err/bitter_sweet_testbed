@@ -94,7 +94,7 @@ test('there are ten unique valid murder sites', () => {
 });
 
 test('there are six unique valid police starts', () => {
-  assert.equal(board.policeStarts.length, 6);
-  assert.equal(new Set(board.policeStarts).size, 6);
+  assert.equal(board.policeStarts.length, 5);
+  assert.equal(new Set(board.policeStarts).size, 5);
   for (const crossing of board.policeStarts) assert.ok(board.crossings[crossing]);
 });

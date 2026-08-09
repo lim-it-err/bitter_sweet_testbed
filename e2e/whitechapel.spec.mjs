@@ -37,15 +37,14 @@ test('직접 지휘: 시작, 순찰대 이동, 수색, 턴 진행', async ({ pag
   const patrol = page.locator('.patrol-g[data-id="0"]');
   const before = await patrol.getAttribute('transform');
   await patrol.click({ force: true });
-  const reachable = page.locator('.crossing.reachable').first();
+  await expect(page.locator('#action-bar')).toBeVisible();
+  const reachable = page.locator('.crossing-g.reachable').first();
   await expect(reachable).toBeVisible();
   await reachable.click({ force: true });
   await expect.poll(() => patrol.getAttribute('transform')).not.toBe(before);
 
-  await page.locator('input[name="mode"][value="search"]').check();
-  const target = page.locator('.circle-g.actionable').first();
-  await expect(target).toBeVisible();
-  await target.click({ force: true });
+  // 이동 후 플로팅 바에서 바로 주변 수색 (모드 전환/스크롤 불필요)
+  await page.locator('#bar-search').click();
   await expect(page.locator('#log')).toContainText(/수색|단서/);
 
   const moveCount = await page.locator('#info-moves').textContent();

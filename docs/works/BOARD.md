@@ -21,3 +21,5 @@
 | WC-207 | AI 관전 모드 (경찰 AI vs 잭 AI) | claude | P2 | DONE |
 | WC-208 | 모바일 가로모드 UX | claude | P2 | DONE |
 | WC-209 | 어려움 잭 튜닝 (smart 경찰 기준 생존율 개선) | claude | P2 | DONE |
+| WC-210 | 플레이 UX 개편 (플로팅 바·팬줌·수색 스윕) | claude | P1 | DONE |
+| WC-211 | 도시형 좌우대칭 맵 (간선도로) | claude | P1 | DONE |
