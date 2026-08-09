@@ -10,7 +10,7 @@
 <body>
   <header>
     <h1>화이트채플의 그림자</h1>
-    <p class="subtitle">1888년 런던 — 순찰대 5명을 지휘해 4번의 밤 안에 잭을 검거하세요</p>
+    <p class="subtitle">1888년 런던 이스트엔드 — 4번의 밤, 추격과 도주</p>
   </header>
 
   <main>
@@ -25,6 +25,8 @@
         <span id="bar-chip" class="chip hidden"></span>
         <span id="bar-hint"></span>
         <button id="bar-search" class="hidden">🔍 주변 수색</button>
+        <button id="bar-coach" class="ghost hidden">🐎 마차</button>
+        <button id="bar-alley" class="ghost hidden">🚪 골목</button>
         <button id="bar-deselect" class="ghost hidden">✕</button>
         <button id="bar-endturn" class="hidden">턴 종료</button>
       </div>
@@ -91,9 +93,11 @@
       <fieldset>
         <legend>모드</legend>
         <label><input type="radio" name="pmode" value="play" checked />
-          직접 지휘 — 당신이 경찰 순찰대를 조작합니다</label>
+          경찰 — 순찰대를 지휘해 잭(AI)을 추적합니다</label>
+        <label><input type="radio" name="pmode" value="jack" />
+          잭 — 당신이 살인마가 되어 AI 경찰을 따돌립니다</label>
         <label><input type="radio" name="pmode" value="spectate" />
-          AI 관전 — 경찰도 AI가 지휘하는 대결을 지켜봅니다</label>
+          AI 관전 — 잭 AI와 경찰 AI의 대결을 지켜봅니다</label>
       </fieldset>
       <fieldset>
         <legend>난이도</legend>

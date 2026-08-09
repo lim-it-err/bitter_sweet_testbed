@@ -23,3 +23,5 @@
 | WC-209 | 어려움 잭 튜닝 (smart 경찰 기준 생존율 개선) | claude | P2 | DONE |
 | WC-210 | 플레이 UX 개편 (플로팅 바·팬줌·수색 스윕) | claude | P1 | DONE |
 | WC-211 | 도시형 좌우대칭 맵 (간선도로) | claude | P1 | DONE |
+| WC-212 | 잭 플레이 모드 (플레이어=잭, AI=경찰) | claude | P1 | DONE |
+| WC-213 | 지도 가시성 (지명 라벨·도시 블록) | claude | P2 | DONE |
