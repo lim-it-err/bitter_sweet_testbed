@@ -61,23 +61,39 @@ test('alley moves exactly match the generated alley mates', () => {
   assert.deepEqual(alleyTargets, [...game.board.alleyMates[from]].sort((a, b) => a - b));
 });
 
-test('search finds a clue on Jack path', () => {
+test('search sweeps adjacent circles and stops at the first clue', () => {
   const game = makeGame();
   const circle = 0;
-  setPoliceActionState(game, circle, [circle]);
-  assert.equal(game.policeAction(0, 'search', circle), true);
+  const patrol = setPoliceActionState(game, circle, [circle]);
+  const adj = [...game.patrolAdjacentCircles(patrol)]
+    .sort((a, b) => game.board.circles[a].num - game.board.circles[b].num);
+  assert.equal(game.policeAction(0, 'search'), true);
   assert.ok(game.cluesPos.has(circle));
   assert.ok(!game.cluesNeg.has(circle));
+  // 단서 이후 순번의 지점은 확인되지 않아야 한다
+  for (const c of adj.slice(adj.indexOf(circle) + 1)) {
+    assert.ok(!game.cluesNeg.has(c));
+    assert.ok(!game.cluesPos.has(c));
+  }
+  // 행동 후에는 이동 불가 (이동 → 행동 순서 규칙)
+  patrol.stepsLeft = 2;
+  assert.equal(game.movePatrol(0, game.board.crossingAdj[patrol.crossing][0]), false);
 });
 
-test('search records a negative result away from Jack path', () => {
+test('search records negative results away from Jack path', () => {
   const game = makeGame();
   const searched = 0;
   const actual = game.board.circleAdj[searched][0].to;
-  setPoliceActionState(game, searched, [actual]);
-  assert.equal(game.policeAction(0, 'search', searched), true);
+  const patrol = setPoliceActionState(game, searched, [actual]);
+  // 잭이 인접 지점에 없도록 멀리 이동시킨다 (스윕이 전부 음성이 되게)
+  const adjacent = new Set(game.patrolAdjacentCircles(patrol));
+  const far = game.board.circles.find((c) => !adjacent.has(c.id)).id;
+  game.jack.path = [far];
+  game.jack.pos = far;
+  assert.equal(game.policeAction(0, 'search'), true);
   assert.ok(game.cluesNeg.has(searched));
-  assert.deepEqual(game.negHistory, [{ circle: searched, atMove: 0 }]);
+  assert.ok(game.negHistory.some((n) => n.circle === searched && n.atMove === 0));
+  assert.equal(game.negHistory.length, adjacent.size);
 });
 
 test('arrest at Jack current position ends the game for police', () => {
@@ -100,14 +116,14 @@ test('failed arrest is recorded without ending the game', () => {
   assert.deepEqual(game.arrestFails, [{ circle: arrested, atMove: 0 }]);
 });
 
-test('police action rejects a non-adjacent circle', () => {
+test('arrest rejects a non-adjacent circle', () => {
   const game = makeGame();
   const patrol = game.patrols[0];
   patrol.crossing = 0;
   patrol.acted = false;
   game.phase = 'police';
   const nonAdjacent = game.board.circles.find((circle) => circle.a !== 0 && circle.b !== 0).id;
-  assert.equal(game.policeAction(0, 'search', nonAdjacent), false);
+  assert.equal(game.policeAction(0, 'arrest', nonAdjacent), false);
   assert.equal(patrol.acted, false);
 });
 
@@ -126,6 +142,7 @@ test('movePatrol accepts a reachable unoccupied crossing', () => {
   const patrol = game.patrols[0];
   patrol.crossing = 0;
   patrol.stepsLeft = 1;
+  patrol.acted = false; // 이동 → 행동 순서: 행동 전에만 이동 가능
   game.phase = 'police';
   const occupied = new Set(game.patrols.slice(1).map((item) => item.crossing));
   const target = game.board.crossingAdj[0].find((crossing) => !occupied.has(crossing));
@@ -183,7 +200,7 @@ test('coach use decrements its resource and records both path circles', async ()
   game.jack.path = [route.from];
   game.legalJackMoves = () => [{ type: 'coach', to: route.to, mid: route.mid }];
   await game.jackTurn();
-  assert.equal(game.jack.coaches, 2);
+  assert.equal(game.jack.coaches, 3);
   assert.deepEqual(game.jack.path, [route.from, route.mid, route.to]);
   assert.deepEqual(game.declared, ['coach']);
 });
@@ -199,7 +216,7 @@ test('alley use decrements its resource', async () => {
   game.jack.path = [from];
   game.legalJackMoves = () => [{ type: 'alley', to, mid: null }];
   await game.jackTurn();
-  assert.equal(game.jack.alleys, 1);
+  assert.equal(game.jack.alleys, 2);
   assert.deepEqual(game.declared, ['alley']);
 });
 

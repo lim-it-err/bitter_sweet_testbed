@@ -54,11 +54,51 @@ main {
   border-radius: 10px;
   padding: 6px;
   display: flex;
+  position: relative;
 }
-#board { width: 100%; height: auto; max-height: calc(100vh - 130px); }
+#board {
+  width: 100%; height: auto; max-height: calc(100vh - 130px);
+  touch-action: none; /* 핀치/드래그를 지도 팬·줌으로 사용 */
+  cursor: grab;
+}
+
+#zoom-controls {
+  position: absolute; top: 10px; right: 10px;
+  display: flex; flex-direction: column; gap: 6px; z-index: 5;
+}
+#zoom-controls button {
+  width: 38px; height: 38px; flex: none;
+  font-size: 1.1rem; line-height: 1; padding: 0;
+  background: rgba(42, 36, 56, 0.92); color: var(--ink);
+  border: 1px solid #4a4258; border-radius: 8px;
+}
+
+#action-bar {
+  position: absolute; left: 50%; bottom: 12px;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(31, 27, 40, 0.95);
+  border: 1px solid var(--accent); border-radius: 24px;
+  padding: 8px 14px; z-index: 5;
+  max-width: calc(100% - 20px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+#action-bar.hidden { display: none; }
+#action-bar .chip {
+  width: 26px; height: 26px; flex: none; border-radius: 6px;
+  color: #10101a; font-weight: 800; font-size: 0.85rem;
+  display: flex; align-items: center; justify-content: center;
+}
+#action-bar .chip.hidden { display: none; }
+#bar-hint { font-size: 0.82rem; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#action-bar button { flex: none; padding: 8px 12px; font-size: 0.85rem; border-radius: 18px; }
+#action-bar button.hidden { display: none; }
+#bar-deselect { width: 36px; padding: 8px 0; }
 
 /* ---- 보드 ---- */
+.hit-area { fill: transparent; stroke: none; }
 .street { fill: none; stroke: #4a4258; stroke-width: 2.5; }
+.street.arterial { stroke: #6b5f85; stroke-width: 6; stroke-linecap: round; }
 
 .circle { fill: #d9cba8; stroke: #8a7a55; stroke-width: 2; cursor: default; }
 .circle.murder-site { stroke: var(--danger); stroke-width: 2.5; }
@@ -68,14 +108,15 @@ main {
   pointer-events: none; font-weight: 700;
 }
 .circle-g.murder-current .circle-num { fill: #fff; }
-.circle-g.actionable .circle {
+.circle-g.arrestable .circle {
   cursor: pointer;
-  stroke: #7ee081; stroke-width: 3;
-  filter: drop-shadow(0 0 6px rgba(126, 224, 129, 0.8));
+  stroke: var(--danger); stroke-width: 3;
+  filter: drop-shadow(0 0 6px rgba(214, 69, 69, 0.85));
 }
 
 .crossing { fill: #565066; stroke: #211d2c; stroke-width: 1.5; }
-.crossing.reachable {
+.crossing.arterial { fill: #6b5f85; }
+.crossing-g.reachable .crossing {
   fill: #58b368; cursor: pointer;
   filter: drop-shadow(0 0 6px rgba(88, 179, 104, 0.9));
 }
@@ -163,6 +204,8 @@ button.ghost { background: var(--panel2); color: var(--ink); border: 1px solid #
   border: 1px solid var(--accent);
   border-radius: 12px;
   max-width: 480px; width: calc(100% - 40px);
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
   padding: 26px 28px;
   text-align: center;
   box-shadow: 0 0 60px rgba(193, 154, 73, 0.25);
@@ -218,6 +261,11 @@ footer a { color: #9b8ab5; }
 
 /* 모바일 가로(낮은 높이) 최적화 */
 @media (max-height: 540px) and (orientation: landscape) {
+  .dialog { padding: 14px 18px; font-size: 0.9rem; }
+  .dialog h2 { font-size: 1.05rem; margin-bottom: 8px; }
+  .dialog p { margin-bottom: 8px; font-size: 0.85rem; line-height: 1.5; }
+  .dialog fieldset { padding: 8px 12px; margin-bottom: 8px; }
+  .dialog fieldset label { padding: 3px 0; font-size: 0.85rem; }
   header { padding: 6px 8px 2px; }
   header h1 { font-size: 1.1rem; letter-spacing: 0.2em; }
   .subtitle { display: none; }
@@ -242,6 +290,18 @@ footer a { color: #9b8ab5; }
   <main>
     <div id="board-wrap">
       <svg id="board" preserveAspectRatio="xMidYMid meet"></svg>
+      <div id="zoom-controls">
+        <button id="zoom-in" aria-label="확대">＋</button>
+        <button id="zoom-out" aria-label="축소">－</button>
+        <button id="zoom-reset" aria-label="원래대로">⟲</button>
+      </div>
+      <div id="action-bar" class="hidden">
+        <span id="bar-chip" class="chip hidden"></span>
+        <span id="bar-hint"></span>
+        <button id="bar-search" class="hidden">🔍 주변 수색</button>
+        <button id="bar-deselect" class="ghost hidden">✕</button>
+        <button id="bar-endturn" class="hidden">턴 종료</button>
+      </div>
     </div>
 
     <aside id="panel">
@@ -260,15 +320,11 @@ footer a { color: #9b8ab5; }
 
       <section class="card">
         <h2>지휘</h2>
-        <div class="mode-row">
-          <label><input type="radio" name="mode" value="move" checked /> 이동</label>
-          <label><input type="radio" name="mode" value="search" /> 수색</label>
-          <label><input type="radio" name="mode" value="arrest" /> 체포</label>
-        </div>
-        <p id="info-selected" class="hint"></p>
         <p class="hint small">
-          순찰대(색 사각형)를 클릭해 선택 → 이동: 초록 교차점 클릭 /
-          수색·체포: 인접한 지점(원) 클릭. 순찰대마다 이동 1회(최대 2칸)와 행동 1회.
+          순찰대를 탭해 선택 → <b>이동</b>(초록 교차점 탭, 최대 2칸) →
+          <b>주변 수색</b>(버튼: 인접 지점을 단서가 나올 때까지 차례로 확인) 또는
+          <b>체포</b>(붉게 표시된 인접 지점 탭). 순서는 이동 → 행동이며, 행동하면 그 턴엔 못 움직입니다.
+          지도는 핀치/휠로 확대, 드래그로 이동.
         </p>
         <label class="hint"><input type="checkbox" id="chk-belief" /> 잭의 추정 위치 표시 (근사)</label>
         <div class="btn-row">
@@ -358,13 +414,17 @@ footer a { color: #9b8ab5; }
   <script>
 // ── board.js ──
 // 오리지널 보드 생성기 — 시드 고정 절차 생성.
-// 원작 보드 데이터를 복제하지 않고, 교차점(사각형)-도로-지점(원) 구조만 차용한 독자 레이아웃.
+// 계획도시(동탄식) 스타일: 좌우대칭 격자 + 간선도로.
 //
 // 구조:
 //  - 교차점(crossing): 격자 위 사각형. 경찰 순찰대가 서는 곳.
 //  - 지점(circle): 두 교차점 사이 도로 위의 원. 잭이 이동하는 곳.
 //  - 잭은 교차점을 "지나서" 인접 지점으로 이동한다. 그 교차점에 경찰이 있으면 통과 불가(마차 제외).
 //  - 블록(face): 격자 한 칸. 같은 블록에 접한 지점끼리는 '골목'으로 순간 이동 가능.
+//
+// 도시 설계:
+//  - 세로 간선 3개(좌/중앙/우), 가로 간선 2개 — 간선도로 위 도로는 절대 끊기지 않는다.
+//  - 이면도로(비간선)만 일부 제거해 골목길 느낌을 내되, 제거는 좌우대칭으로 수행 → 공정한 밸런스.
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -377,10 +437,13 @@ function mulberry32(seed) {
   };
 }
 
-const W = 12; // 교차점 격자 가로
+const W = 13; // 교차점 격자 가로 (홀수 → 완전한 좌우대칭)
 const H = 9; // 교차점 격자 세로
-const SP = 92; // 격자 간격(px)
+const CX = (W - 1) / 2; // 중앙(대칭축) 열
+const SP = 90; // 격자 간격(px)
 const MARGIN = 64;
+const V_ARTERIALS = [2, CX, W - 3]; // 세로 간선도로 열
+const H_ARTERIALS = [2, H - 3]; // 가로 간선도로 행
 
 function bfsDist(adjList, n, start) {
   const dist = new Array(n).fill(Infinity);
@@ -411,14 +474,13 @@ function isConnected(nCross, edges) {
     const u = q.pop();
     for (const v of adj[u]) if (!seen.has(v)) { seen.add(v); q.push(v); }
   }
-  // 도로가 하나라도 붙은 교차점은 전부 연결되어야 함
   const touched = new Set();
   for (const [a, b] of edges) { touched.add(a); touched.add(b); }
   for (const c of touched) if (!seen.has(c)) return false;
   return true;
 }
 
-// 그래프 거리 기반 최원점(farthest-point) 샘플링 — 지점/교차점을 고르게 분산 선택
+// 그래프 거리 기반 최원점(farthest-point) 샘플링 — 후보를 고르게 분산 선택
 function spreadSample(distMatrix, candidates, count, firstIndex) {
   const chosen = [candidates[firstIndex % candidates.length]];
   while (chosen.length < count) {
@@ -437,67 +499,104 @@ function spreadSample(distMatrix, candidates, count, firstIndex) {
 function generateBoard(seed = 18881109) {
   const rnd = mulberry32(seed);
   const cid = (gx, gy) => gy * W + gx;
+  const mirrorC = (id) => {
+    const gx = id % W, gy = Math.floor(id / W);
+    return cid(W - 1 - gx, gy);
+  };
 
-  const crossings = [];
+  // 교차점 — 지터는 좌측에서 생성하고 우측에 거울로 복사 (완전 대칭)
+  const crossings = new Array(W * H);
   for (let gy = 0; gy < H; gy++) {
-    for (let gx = 0; gx < W; gx++) {
-      crossings.push({
-        id: cid(gx, gy),
-        gx, gy,
-        x: MARGIN + gx * SP + (rnd() - 0.5) * 24,
-        y: MARGIN + gy * SP + (rnd() - 0.5) * 24,
-      });
+    for (let gx = 0; gx <= CX; gx++) {
+      const jx = gx === CX ? 0 : (rnd() - 0.5) * 20;
+      const jy = (rnd() - 0.5) * 20;
+      const id = cid(gx, gy);
+      crossings[id] = {
+        id, gx, gy,
+        x: MARGIN + gx * SP + jx,
+        y: MARGIN + gy * SP + jy,
+        arterial: V_ARTERIALS.includes(gx) || H_ARTERIALS.includes(gy),
+      };
+      if (gx !== CX) {
+        const mid = cid(W - 1 - gx, gy);
+        crossings[mid] = {
+          id: mid, gx: W - 1 - gx, gy,
+          x: MARGIN + (W - 1 - gx) * SP - jx,
+          y: MARGIN + gy * SP + jy,
+          arterial: V_ARTERIALS.includes(W - 1 - gx) || H_ARTERIALS.includes(gy),
+        };
+      }
     }
   }
 
-  // 후보 도로: 인접 교차점 쌍
+  // 후보 도로: 인접 교차점 쌍 (+간선 여부)
+  const edgeKeyOf = (a, b) => (a < b ? `${a}-${b}` : `${b}-${a}`);
   let edges = [];
   for (let gy = 0; gy < H; gy++) {
     for (let gx = 0; gx < W; gx++) {
-      if (gx + 1 < W) edges.push([cid(gx, gy), cid(gx + 1, gy)]);
-      if (gy + 1 < H) edges.push([cid(gx, gy), cid(gx, gy + 1)]);
+      if (gx + 1 < W) {
+        edges.push({ a: cid(gx, gy), b: cid(gx + 1, gy), arterial: H_ARTERIALS.includes(gy) });
+      }
+      if (gy + 1 < H) {
+        edges.push({ a: cid(gx, gy), b: cid(gx, gy + 1), arterial: V_ARTERIALS.includes(gx) });
+      }
     }
   }
+  const edgeIdxByKey = new Map(edges.map((e, i) => [edgeKeyOf(e.a, e.b), i]));
+  const mirrorEdgeIdx = (i) => edgeIdxByKey.get(edgeKeyOf(mirrorC(edges[i].a), mirrorC(edges[i].b)));
 
-  // 일부 도로 제거(불규칙한 골목길 느낌). 연결성과 교차점 최소 차수 2를 유지.
-  const removeTarget = Math.floor(edges.length * 0.15);
-  const order = edges.map((_, i) => i);
-  for (let i = order.length - 1; i > 0; i--) {
+  // 이면도로 제거 — 좌우 쌍 단위로, 연결성·최소 차수 2 유지
+  const nonArterialCount = edges.filter((e) => !e.arterial).length;
+  const removeTarget = Math.floor(nonArterialCount * 0.18);
+  const canonical = edges
+    .map((_, i) => i)
+    .filter((i) => !edges[i].arterial && i <= mirrorEdgeIdx(i));
+  for (let i = canonical.length - 1; i > 0; i--) {
     const j = Math.floor(rnd() * (i + 1));
-    [order[i], order[j]] = [order[j], order[i]];
+    [canonical[i], canonical[j]] = [canonical[j], canonical[i]];
   }
   const removed = new Set();
   const degree = new Array(crossings.length).fill(0);
-  for (const [a, b] of edges) { degree[a]++; degree[b]++; }
+  for (const e of edges) { degree[e.a]++; degree[e.b]++; }
   let removedCount = 0;
-  for (const idx of order) {
+  for (const idx of canonical) {
     if (removedCount >= removeTarget) break;
-    const [a, b] = edges[idx];
-    if (degree[a] <= 2 || degree[b] <= 2) continue;
-    removed.add(idx);
-    const kept = edges.filter((_, i) => !removed.has(i));
+    const pair = [...new Set([idx, mirrorEdgeIdx(idx)])];
+    if (pair.some((i) => removed.has(i))) continue;
+    const ends = pair.flatMap((i) => [edges[i].a, edges[i].b]);
+    const degAfter = new Map();
+    for (const v of ends) degAfter.set(v, (degAfter.get(v) ?? degree[v]) - 1);
+    if ([...degAfter.values()].some((d) => d < 2)) continue;
+    for (const i of pair) removed.add(i);
+    const kept = edges.filter((_, i) => !removed.has(i)).map((e) => [e.a, e.b]);
     if (!isConnected(crossings.length, kept)) {
-      removed.delete(idx);
+      for (const i of pair) removed.delete(i);
       continue;
     }
-    degree[a]--; degree[b]--;
-    removedCount++;
+    for (const [v, d] of degAfter) degree[v] = d;
+    removedCount += pair.length;
   }
   edges = edges.filter((_, i) => !removed.has(i));
 
-  // 지점(원) = 남은 도로의 중간점
-  let circles = edges.map(([a, b]) => {
-    const ca = crossings[a], cb = crossings[b];
-    const dx = cb.x - ca.x, dy = cb.y - ca.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const off = (rnd() - 0.5) * 10;
+  // 지점(원) = 남은 도로의 중간점 — 오프셋도 좌우대칭
+  const keptIdxByKey = new Map(edges.map((e, i) => [edgeKeyOf(e.a, e.b), i]));
+  const offsets = new Array(edges.length);
+  for (let i = 0; i < edges.length; i++) {
+    if (offsets[i]) continue;
+    const mi = keptIdxByKey.get(edgeKeyOf(mirrorC(edges[i].a), mirrorC(edges[i].b)));
+    const ox = mi === i ? 0 : (rnd() - 0.5) * 9;
+    const oy = (rnd() - 0.5) * 9;
+    offsets[i] = { ox, oy };
+    if (mi !== i && mi !== undefined) offsets[mi] = { ox: -ox, oy };
+  }
+  let circles = edges.map((e, i) => {
+    const ca = crossings[e.a], cb = crossings[e.b];
     return {
-      a, b,
-      x: (ca.x + cb.x) / 2 + (-dy / len) * off,
-      y: (ca.y + cb.y) / 2 + (dx / len) * off,
+      a: e.a, b: e.b, arterial: e.arterial,
+      x: (ca.x + cb.x) / 2 + offsets[i].ox,
+      y: (ca.y + cb.y) / 2 + offsets[i].oy,
     };
   });
-  // 번호는 좌상단부터 (읽기 쉬운 배치)
   circles.sort((p, q) => (p.y - q.y) || (p.x - q.x));
   circles.forEach((c, i) => { c.id = i; c.num = i + 1; });
 
@@ -520,18 +619,17 @@ function generateBoard(seed = 18881109) {
   }
 
   // 블록(골목): 격자 한 칸을 둘러싼 지점들
-  const edgeKey = (a, b) => (a < b ? `${a}-${b}` : `${b}-${a}`);
   const circleByEdge = new Map();
-  for (const c of circles) circleByEdge.set(edgeKey(c.a, c.b), c.id);
+  for (const c of circles) circleByEdge.set(edgeKeyOf(c.a, c.b), c.id);
   const alleyMates = circles.map(() => new Set());
   for (let gy = 0; gy < H - 1; gy++) {
     for (let gx = 0; gx < W - 1; gx++) {
       const corners = [cid(gx, gy), cid(gx + 1, gy), cid(gx, gy + 1), cid(gx + 1, gy + 1)];
       const sides = [
-        edgeKey(corners[0], corners[1]),
-        edgeKey(corners[2], corners[3]),
-        edgeKey(corners[0], corners[2]),
-        edgeKey(corners[1], corners[3]),
+        edgeKeyOf(corners[0], corners[1]),
+        edgeKeyOf(corners[2], corners[3]),
+        edgeKeyOf(corners[0], corners[2]),
+        edgeKeyOf(corners[1], corners[3]),
       ];
       const members = sides.map((k) => circleByEdge.get(k)).filter((x) => x !== undefined);
       for (const m of members) for (const n of members) if (m !== n) alleyMates[m].add(n);
@@ -543,13 +641,28 @@ function generateBoard(seed = 18881109) {
   const circleDist = circles.map((_, i) => bfsDist(circleAdjPlain, circles.length, i));
   const crossingDist = crossings.map((_, i) => bfsDist(crossingAdj, crossings.length, i));
 
-  // 살인 후보지 10곳(붉은 지점) — 보드 전역에 분산
-  const allCircleIds = circles.map((c) => c.id);
-  const murderSites = spreadSample(circleDist, allCircleIds, 10, Math.floor(rnd() * circles.length));
+  // 대칭 유지 도우미: 지점의 거울 지점
+  const circleIdByKey = new Map(circles.map((c) => [edgeKeyOf(c.a, c.b), c.id]));
+  const mirrorCircle = (id) => {
+    const c = circles[id];
+    return circleIdByKey.get(edgeKeyOf(mirrorC(c.a), mirrorC(c.b)));
+  };
 
-  // 경찰 시작 교차점 6곳 — 분산 배치 (맵이 커진 만큼 순찰대도 6명)
-  const allCrossIds = crossings.map((c) => c.id);
-  const policeStarts = spreadSample(crossingDist, allCrossIds, 6, Math.floor(rnd() * crossings.length));
+  // 살인 후보지 10곳 — 간선이 아닌 이면도로(뒷골목)에서, 왼쪽 절반 5곳 + 거울 5곳 (좌우대칭 밸런스)
+  const leftCircles = circles
+    .filter((c) => !c.arterial && (c.a % W) < CX && (c.b % W) < CX)
+    .map((c) => c.id);
+  const leftSites = spreadSample(circleDist, leftCircles, 5, Math.floor(rnd() * leftCircles.length));
+  const murderSites = [...leftSites, ...leftSites.map(mirrorCircle)];
+
+  // 경찰 시작 교차점 5곳 — 파출소처럼 현실적으로: 모서리 간선 교차로 4곳 + 중앙 간선 위 1곳 (좌우대칭)
+  const policeStarts = [
+    cid(V_ARTERIALS[0], H_ARTERIALS[0]),
+    cid(V_ARTERIALS[2], H_ARTERIALS[0]),
+    cid(V_ARTERIALS[0], H_ARTERIALS[1]),
+    cid(V_ARTERIALS[2], H_ARTERIALS[1]),
+    cid(CX, (H - 1) / 2),
+  ];
 
   return {
     crossings, circles, circlesAt, crossingAdj, circleAdj,
@@ -597,7 +710,8 @@ class Game {
       id: i, crossing: c, stepsLeft: 0, acted: true,
     }));
     this.night = 0;
-    this.jack = { hideout: null, pos: null, path: [], movesUsed: 0, coaches: 3, alleys: 2 };
+    // 맵 확장 + 스윕 수색 규칙에 맞춘 특수 이동 수량 (마차 4, 골목 3)
+    this.jack = { hideout: null, pos: null, path: [], movesUsed: 0, coaches: 4, alleys: 3 };
     this.usedMurderSites = [];
     this.cluesPos = new Set(); // 이번 밤: 단서 발견된 지점
     this.cluesNeg = new Set(); // 이번 밤: 수색했지만 흔적 없던 지점
@@ -749,7 +863,8 @@ class Game {
 
   movePatrol(patrolId, targetCrossing) {
     const p = this.patrols[patrolId];
-    if (this.phase !== 'police' || !this.patrolReachable(p).has(targetCrossing)) return false;
+    // 순서 규칙: 이동 → 행동. 이미 수색/체포한 순찰대는 이 턴에 더 움직일 수 없다.
+    if (this.phase !== 'police' || p.acted || !this.patrolReachable(p).has(targetCrossing)) return false;
     this.events.push({
       t: 'pmove', night: this.night, moveNo: this.jack.movesUsed,
       pid: p.id, from: p.crossing, to: targetCrossing,
@@ -763,24 +878,43 @@ class Game {
     return this.board.circlesAt[patrol.crossing];
   }
 
-  policeAction(patrolId, kind, circleId) {
+  // 수색: 원작처럼 인접 지점을 번호 순서로 차례차례 확인하고, 단서가 나오면 멈춘다.
+  // 체포: 지정한 인접 지점 1곳을 덮친다.
+  policeAction(patrolId, kind, circleId = null) {
     const p = this.patrols[patrolId];
     if (this.phase !== 'police' || p.acted) return false;
+    if (kind === 'search') {
+      const adj = [...this.patrolAdjacentCircles(p)]
+        .sort((a, b) => this.board.circles[a].num - this.board.circles[b].num);
+      if (adj.length === 0) return false;
+      p.acted = true;
+      p.stepsLeft = 0; // 이동 → 행동 순서: 행동하면 이동 기회 소멸
+      const results = [];
+      let hit = null;
+      for (const c of adj) {
+        const found = this.jack.path.includes(c);
+        results.push({ circle: c, found });
+        if (found) {
+          this.cluesPos.add(c);
+          hit = c;
+          break;
+        }
+        this.cluesNeg.add(c);
+        this.negHistory.push({ circle: c, atMove: this.jack.movesUsed });
+      }
+      this.events.push({ t: 'search', night: this.night, moveNo: this.jack.movesUsed, pid: p.id, results });
+      if (hit !== null) {
+        this.addLog(`순찰대 ${p.id + 1}이(가) 주변을 수색하다 ${this.board.circles[hit].num}번 지점에서 단서를 발견했습니다!`, 'clue');
+      } else {
+        this.addLog(`순찰대 ${p.id + 1}이(가) 주변 ${results.length}곳을 수색했지만 흔적이 없습니다.`, '');
+      }
+      return true;
+    }
     if (!this.patrolAdjacentCircles(p).includes(circleId)) return false;
     p.acted = true;
+    p.stepsLeft = 0;
     const num = this.board.circles[circleId].num;
-    if (kind === 'search') {
-      const found = this.jack.path.includes(circleId);
-      this.events.push({ t: 'search', night: this.night, moveNo: this.jack.movesUsed, pid: p.id, circle: circleId, found });
-      if (found) {
-        this.cluesPos.add(circleId);
-        this.addLog(`순찰대 ${p.id + 1}이(가) ${num}번 지점에서 단서를 발견했습니다!`, 'clue');
-      } else {
-        this.cluesNeg.add(circleId);
-        this.negHistory.push({ circle: circleId, atMove: this.jack.movesUsed });
-        this.addLog(`순찰대 ${p.id + 1}이(가) ${num}번 지점을 수색했지만 흔적이 없습니다.`, '');
-      }
-    } else if (kind === 'arrest') {
+    if (kind === 'arrest') {
       const success = this.jack.pos === circleId;
       this.events.push({ t: 'arrest', night: this.night, moveNo: this.jack.movesUsed, pid: p.id, circle: circleId, success });
       if (success) {
@@ -1177,7 +1311,8 @@ function policeAiMove(game, patrol, targets) {
   return best;
 }
 
-// 행동: 추정 집합이 충분히 좁고 인접에 후보가 있으면 체포, 아니면 정보가 되는 수색
+// 행동: 추정 집합이 충분히 좁고 인접에 후보가 있으면 체포, 아니면 주변 수색
+// (수색은 규칙상 인접 지점 전체를 단서가 나올 때까지 차례로 훑는다)
 function policeAiAction(game, patrol, belief) {
   if (patrol.acted) return null;
   const adj = game.patrolAdjacentCircles(patrol);
@@ -1186,21 +1321,7 @@ function policeAiAction(game, patrol, belief) {
   if (inBelief.length > 0 && belief.size <= 3) {
     return { kind: 'arrest', circle: inBelief[0] };
   }
-  if (inBelief.length > 0) {
-    // 아직 수색 안 한 후보 우선
-    const fresh = inBelief.filter((c) => !game.cluesPos.has(c) && !game.cluesNeg.has(c));
-    return { kind: 'search', circle: (fresh[0] ?? inBelief[0]) };
-  }
-  // 인접에 후보가 없으면 추정 집합에 가장 가까운 지점을 수색(경로 단서 노림)
-  const b = game.board;
-  let best = adj[0], bestD = Infinity;
-  for (const c of adj) {
-    for (const bl of belief) {
-      const d = b.circleDist[c][bl];
-      if (d < bestD) { bestD = d; best = c; }
-    }
-  }
-  return { kind: 'search', circle: best };
+  return { kind: 'search' };
 }
 
 function planPoliceTargets(game) {
@@ -1243,10 +1364,11 @@ function buildReview(game) {
   push('  - 은신처는 4밤 내내 같은 곳이며 게임 끝까지 비밀. (이 기보에는 공개되어 있음)');
   push('- 잭의 이동 종류(종류만 공개, 목적지는 비공개):');
   push('  - **도보**: 인접 지점으로 1칸');
-  push('  - **마차**(게임당 3회): 한 턴에 2칸, 경찰 교차점 통과 가능');
-  push('  - **골목**(게임당 2회): 같은 블록(격자 한 칸)에 접한 다른 지점으로 순간 이동');
-  push('- 잭 이동 후 경찰 턴: 순찰대 각각 이동 1회(교차점 최대 2칸) + 행동 1회:');
-  push('  - **수색**: 자기 교차점에 인접한 지점 1곳에 "이번 밤 잭이 지나갔는지" 확인 (지나갔으면 단서)');
+  push('  - **마차**(게임당 4회): 한 턴에 2칸, 경찰 교차점 통과 가능');
+  push('  - **골목**(게임당 3회): 같은 블록(격자 한 칸)에 접한 다른 지점으로 순간 이동');
+  push('- 잭 이동 후 경찰 턴: 순찰대 각각 이동 1회(교차점 최대 2칸) 후 행동 1회 (순서: 이동 → 행동):');
+  push('  - **수색**: 자기 교차점에 인접한 지점들을 번호 순서로 차례로 확인 — "이번 밤 잭이 지나갔는지".');
+  push('    단서가 나오면 그 지점에서 수색이 멈춘다 (그 뒤 지점들은 확인 안 됨).');
   push('  - **체포**: 인접 지점 1곳을 덮침 — 잭이 *지금 그 지점에 있어야만* 성공');
   push('- 승리: 경찰은 체포/포위/새벽 검거, 잭은 4밤 생존.');
   push();
@@ -1259,7 +1381,7 @@ function buildReview(game) {
   push(`- 잭의 은신처: **${num(game.jack.hideout)}번 지점** (게임 중에는 비밀이었음)`);
   push(`- 살인 후보지(붉은 지점): ${b.murderSites.map(num).join(', ')}`);
   push(`- 순찰대 시작 교차점: ${game.patrols.map((p, i) => `P${i + 1}=${crossName(b.policeStarts[i])}`).join(', ')}`);
-  push(`- 잭 특수 이동 잔여: 마차 ${game.jack.coaches}/3, 골목 ${game.jack.alleys}/2`);
+  push(`- 잭 특수 이동 잔여: 마차 ${game.jack.coaches}/4, 골목 ${game.jack.alleys}/3`);
   push();
 
   // ── 3. 타임라인 ────────────────────────────────────────────────────
@@ -1277,7 +1399,8 @@ function buildReview(game) {
     } else if (e.t === 'pmove') {
       push(`  - P${e.pid + 1} 이동 ${crossName(e.from)} → ${crossName(e.to)}`);
     } else if (e.t === 'search') {
-      push(`  - P${e.pid + 1} 수색 ${num(e.circle)}번 → ${e.found ? '**단서 발견!**' : '흔적 없음'}`);
+      const parts = e.results.map((r) => `${num(r.circle)}${r.found ? '**단서!**' : '✕'}`).join(', ');
+      push(`  - P${e.pid + 1} 주변 수색: ${parts}`);
     } else if (e.t === 'arrest') {
       push(`  - P${e.pid + 1} 체포 시도 ${num(e.circle)}번 → ${e.success ? '**성공!**' : '실패(빈 곳)'}`);
     } else if (e.t === 'nightEnd') {
@@ -1296,7 +1419,7 @@ function buildReview(game) {
   const arrests = game.events.filter((e) => e.t === 'arrest');
   push('## 통계');
   push();
-  push(`- 수색 ${searches.length}회 (단서 적중 ${searches.filter((e) => e.found).length}회)`);
+  push(`- 수색 ${searches.length}회 (단서 적중 ${searches.filter((e) => e.results.some((r) => r.found)).length}회)`);
   push(`- 체포 시도 ${arrests.length}회 (성공 ${arrests.filter((e) => e.success).length}회)`);
   push(`- 밤별 잭 이동 수: ${game.allPaths.map((p, i) => `${i + 1}밤 ${p.length - 1}회`).join(', ')}`);
   push();
@@ -1359,11 +1482,12 @@ function el(tag, attrs = {}, parent = null) {
 class UI {
   constructor(game, callbacks) {
     this.game = game;
-    this.cb = callbacks; // { onEndTurn, onNewGame, onNextNight }
+    this.cb = callbacks; // { onEndTurn, onNewGame, onStateChanged }
     this.selectedPatrol = null;
-    this.mode = 'move'; // move|search|arrest
     this.showBelief = false;
+    this._dragged = false;
     this.buildBoard();
+    this.initPanZoom();
     this.bindPanel();
     this.render();
   }
@@ -1372,10 +1496,12 @@ class UI {
     const b = this.game.board;
     const svg = document.getElementById('board');
     svg.innerHTML = '';
-    svg.setAttribute('viewBox', `0 0 ${b.viewW} ${b.viewH}`);
+    this.svg = svg;
+    this.vb = { x: 0, y: 0, w: b.viewW, h: b.viewH };
+    this.applyViewBox();
 
     this.gEdges = el('g', {}, svg);
-    this.gPaths = el('g', {}, svg); // 게임 종료 시 잭 경로 공개
+    this.gPaths = el('g', {}, svg);
     this.gBelief = el('g', {}, svg);
     this.gHighlight = el('g', {}, svg);
     this.gCircles = el('g', {}, svg);
@@ -1383,20 +1509,21 @@ class UI {
     this.gMarkers = el('g', {}, svg);
     this.gPatrols = el('g', {}, svg);
 
-    // 도로
+    // 도로 — 간선도로는 굵게
     for (const c of b.circles) {
       const ca = b.crossings[c.a], cb = b.crossings[c.b];
       el('path', {
         d: `M${ca.x},${ca.y} Q${c.x},${c.y} ${cb.x},${cb.y}`,
-        class: 'street',
+        class: c.arterial ? 'street arterial' : 'street',
       }, this.gEdges);
     }
 
-    // 지점(원)
+    // 지점(원) — 모바일 터치를 위해 투명한 히트 영역 추가
     this.circleNodes = [];
     const murderSet = new Set(b.murderSites);
     for (const c of b.circles) {
       const g = el('g', { class: 'circle-g', 'data-id': c.id }, this.gCircles);
+      el('circle', { cx: c.x, cy: c.y, r: 21, class: 'hit-area' }, g);
       el('circle', {
         cx: c.x, cy: c.y, r: 13,
         class: 'circle' + (murderSet.has(c.id) ? ' murder-site' : ''),
@@ -1410,18 +1537,21 @@ class UI {
     // 교차점(사각형)
     this.crossingNodes = [];
     for (const cr of b.crossings) {
-      const r = el('rect', {
+      const g = el('g', { class: 'crossing-g', 'data-id': cr.id }, this.gCrossings);
+      el('circle', { cx: cr.x, cy: cr.y, r: 17, class: 'hit-area' }, g);
+      el('rect', {
         x: cr.x - 6, y: cr.y - 6, width: 12, height: 12,
-        class: 'crossing', 'data-id': cr.id,
+        class: cr.arterial ? 'crossing arterial' : 'crossing',
         transform: `rotate(45 ${cr.x} ${cr.y})`,
-      }, this.gCrossings);
-      r.addEventListener('click', () => this.onCrossingClick(cr.id));
-      this.crossingNodes.push(r);
+      }, g);
+      g.addEventListener('click', () => this.onCrossingClick(cr.id));
+      this.crossingNodes.push(g);
     }
 
     // 순찰대 말
     this.patrolNodes = this.game.patrols.map((p) => {
       const g = el('g', { class: 'patrol-g', 'data-id': p.id }, this.gPatrols);
+      el('circle', { cx: 0, cy: 0, r: 20, class: 'hit-area' }, g);
       el('rect', {
         x: -10, y: -10, width: 20, height: 20, rx: 4,
         class: 'patrol', fill: PATROL_COLORS[p.id],
@@ -1433,14 +1563,118 @@ class UI {
     });
   }
 
-  bindPanel() {
-    document.querySelectorAll('input[name="mode"]').forEach((r) => {
-      r.addEventListener('change', () => { this.mode = r.value; this.render(); });
+  // ── 팬/줌 (휠 + 핀치 + 드래그) ──────────────────────────────
+  applyViewBox() {
+    this.svg.setAttribute('viewBox', `${this.vb.x} ${this.vb.y} ${this.vb.w} ${this.vb.h}`);
+  }
+
+  svgPoint(clientX, clientY) {
+    const pt = this.svg.createSVGPoint();
+    pt.x = clientX; pt.y = clientY;
+    return pt.matrixTransform(this.svg.getScreenCTM().inverse());
+  }
+
+  zoomAt(px, py, factor) {
+    const b = this.game.board;
+    const newW = Math.min(b.viewW * 1.1, Math.max(b.viewW / 6, this.vb.w * factor));
+    const scale = newW / this.vb.w;
+    this.vb.x = px - (px - this.vb.x) * scale;
+    this.vb.y = py - (py - this.vb.y) * scale;
+    this.vb.w = newW;
+    this.vb.h = this.vb.h * scale;
+    this.applyViewBox();
+  }
+
+  initPanZoom() {
+    const svg = this.svg;
+    const pointers = new Map();
+    let pinchDist = 0;
+    let panStart = null;
+
+    svg.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const p = this.svgPoint(e.clientX, e.clientY);
+      this.zoomAt(p.x, p.y, e.deltaY > 0 ? 1.15 : 0.87);
+    }, { passive: false });
+
+    svg.addEventListener('pointerdown', (e) => {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      this._dragged = false;
+      if (pointers.size === 1) {
+        panStart = { cx: e.clientX, cy: e.clientY, vx: this.vb.x, vy: this.vb.y };
+      } else if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+        panStart = null;
+      }
     });
+    svg.addEventListener('pointermove', (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const rect = svg.getBoundingClientRect();
+      const unit = this.vb.w / rect.width; // 화면 px → SVG 단위
+      if (pointers.size === 1 && panStart) {
+        const dx = e.clientX - panStart.cx, dy = e.clientY - panStart.cy;
+        if (Math.hypot(dx, dy) > 8) this._dragged = true;
+        if (this._dragged) {
+          this.vb.x = panStart.vx - dx * unit;
+          this.vb.y = panStart.vy - dy * unit;
+          this.applyViewBox();
+        }
+      } else if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinchDist > 0 && d > 0) {
+          this._dragged = true;
+          const mid = this.svgPoint((a.x + b.x) / 2, (a.y + b.y) / 2);
+          this.zoomAt(mid.x, mid.y, pinchDist / d);
+          pinchDist = d;
+        }
+      }
+    });
+    const release = (e) => {
+      pointers.delete(e.pointerId);
+      if (pointers.size === 0) {
+        panStart = null;
+        // 클릭 이벤트가 처리된 뒤 드래그 플래그 해제
+        setTimeout(() => { this._dragged = false; }, 0);
+      }
+    };
+    svg.addEventListener('pointerup', release);
+    svg.addEventListener('pointercancel', release);
+
+    document.getElementById('zoom-in').addEventListener('click', () => {
+      this.zoomAt(this.vb.x + this.vb.w / 2, this.vb.y + this.vb.h / 2, 0.75);
+    });
+    document.getElementById('zoom-out').addEventListener('click', () => {
+      this.zoomAt(this.vb.x + this.vb.w / 2, this.vb.y + this.vb.h / 2, 1.33);
+    });
+    document.getElementById('zoom-reset').addEventListener('click', () => {
+      const b = this.game.board;
+      this.vb = { x: 0, y: 0, w: b.viewW, h: b.viewH };
+      this.applyViewBox();
+    });
+  }
+
+  // ── 입력 ────────────────────────────────────────────────────
+  bindPanel() {
     document.getElementById('btn-endturn').addEventListener('click', () => this.cb.onEndTurn());
+    document.getElementById('bar-endturn').addEventListener('click', () => this.cb.onEndTurn());
     document.getElementById('btn-newgame').addEventListener('click', () => this.cb.onNewGame());
     document.getElementById('chk-belief').addEventListener('change', (e) => {
       this.showBelief = e.target.checked;
+      this.render();
+    });
+    document.getElementById('bar-search').addEventListener('click', () => {
+      if (this.selectedPatrol === null) return;
+      if (this.game.policeAction(this.selectedPatrol, 'search')) {
+        this.selectedPatrol = null;
+        this.cb.onStateChanged();
+        this.render();
+      }
+    });
+    document.getElementById('bar-deselect').addEventListener('click', () => {
+      this.selectedPatrol = null;
       this.render();
     });
     document.getElementById('btn-review-dl').addEventListener('click', () => {
@@ -1464,60 +1698,61 @@ class UI {
     });
   }
 
+  canCommand() {
+    return this.game.phase === 'police' && !this.game.spectate && !this._dragged;
+  }
+
   onPatrolClick(pid) {
-    if (this.game.phase !== 'police' || this.game.spectate) return;
+    if (!this.canCommand()) return;
     this.selectedPatrol = this.selectedPatrol === pid ? null : pid;
     this.render();
   }
 
   onCrossingClick(cid) {
-    if (this.game.phase !== 'police' || this.game.spectate || this.selectedPatrol === null || this.mode !== 'move') return;
+    if (!this.canCommand() || this.selectedPatrol === null) return;
     if (this.game.movePatrol(this.selectedPatrol, cid)) this.render();
   }
 
+  // 지점 탭 = 체포 시도 (선택된 순찰대의 인접 지점만 반응)
   onCircleClick(circleId) {
-    if (this.game.phase !== 'police' || this.game.spectate || this.selectedPatrol === null) return;
-    if (this.mode !== 'search' && this.mode !== 'arrest') return;
-    if (this.game.policeAction(this.selectedPatrol, this.mode, circleId)) {
+    if (!this.canCommand() || this.selectedPatrol === null) return;
+    const p = this.game.patrols[this.selectedPatrol];
+    if (p.acted || !this.game.patrolAdjacentCircles(p).includes(circleId)) return;
+    if (this.game.policeAction(this.selectedPatrol, 'arrest', circleId)) {
       this.selectedPatrol = null;
       this.cb.onStateChanged();
       this.render();
     }
   }
 
+  // ── 렌더링 ──────────────────────────────────────────────────
   render() {
     const g = this.game;
     const b = g.board;
 
-    // 순찰대 위치/선택 표시
     g.patrols.forEach((p, i) => {
       const cr = b.crossings[p.crossing];
       this.patrolNodes[i].setAttribute('transform', `translate(${cr.x},${cr.y})`);
       this.patrolNodes[i].classList.toggle('selected', this.selectedPatrol === i);
-      this.patrolNodes[i].classList.toggle('done', g.phase === 'police' && p.stepsLeft === 0 && p.acted);
+      this.patrolNodes[i].classList.toggle('done', g.phase === 'police' && p.acted);
     });
 
-    // 하이라이트
-    this.gHighlight.innerHTML = '';
     this.crossingNodes.forEach((n) => n.classList.remove('reachable'));
-    this.circleNodes.forEach((n) => n.classList.remove('actionable', 'murder-current'));
-    if (g.phase === 'police' && this.selectedPatrol !== null) {
+    this.circleNodes.forEach((n) => n.classList.remove('arrestable', 'murder-current'));
+    if (g.phase === 'police' && !g.spectate && this.selectedPatrol !== null) {
       const p = g.patrols[this.selectedPatrol];
-      if (this.mode === 'move' && p.stepsLeft > 0) {
+      if (!p.acted && p.stepsLeft > 0) {
         for (const cid of g.patrolReachable(p)) this.crossingNodes[cid].classList.add('reachable');
       }
-      if ((this.mode === 'search' || this.mode === 'arrest') && !p.acted) {
-        for (const c of g.patrolAdjacentCircles(p)) this.circleNodes[c].classList.add('actionable');
+      if (!p.acted) {
+        for (const c of g.patrolAdjacentCircles(p)) this.circleNodes[c].classList.add('arrestable');
       }
     }
 
-    // 이번 밤 살인 지점
     if (g.night > 0 && g.jack.path.length > 0) {
-      const site = g.jack.path[0];
-      this.circleNodes[site].classList.add('murder-current');
+      this.circleNodes[g.jack.path[0]].classList.add('murder-current');
     }
 
-    // 단서 마커
     this.gMarkers.innerHTML = '';
     for (const cid of g.cluesPos) {
       const c = b.circles[cid];
@@ -1529,7 +1764,6 @@ class UI {
       m.textContent = '✕';
     }
 
-    // 추정 위치(근사) 오버레이
     this.gBelief.innerHTML = '';
     if (this.showBelief && g.phase !== 'gameOver' && g.night > 0) {
       for (const cid of g.computeBelief()) {
@@ -1538,7 +1772,6 @@ class UI {
       }
     }
 
-    // 게임 종료: 은신처와 밤별 경로 공개
     this.gPaths.innerHTML = '';
     if (g.phase === 'gameOver') {
       const h = b.circles[g.jack.hideout];
@@ -1553,7 +1786,48 @@ class UI {
       });
     }
 
+    this.renderActionBar();
     this.renderPanel();
+  }
+
+  // 보드 위 플로팅 지휘 바 — 스크롤 없이 이동/수색/체포/턴종료
+  renderActionBar() {
+    const g = this.game;
+    const bar = document.getElementById('action-bar');
+    const active = g.phase === 'police' && !g.spectate;
+    bar.classList.toggle('hidden', !active);
+    if (!active) return;
+
+    const chip = document.getElementById('bar-chip');
+    const hint = document.getElementById('bar-hint');
+    const searchBtn = document.getElementById('bar-search');
+    const deselectBtn = document.getElementById('bar-deselect');
+    const endBtn = document.getElementById('bar-endturn');
+
+    if (this.selectedPatrol !== null) {
+      const p = g.patrols[this.selectedPatrol];
+      chip.textContent = `P${p.id + 1}`;
+      chip.style.background = PATROL_COLORS[p.id];
+      chip.classList.remove('hidden');
+      searchBtn.classList.remove('hidden');
+      deselectBtn.classList.remove('hidden');
+      endBtn.classList.add('hidden');
+      searchBtn.disabled = p.acted;
+      hint.textContent = p.acted
+        ? '행동 완료 — 다른 순찰대를 탭하세요'
+        : (p.stepsLeft > 0
+          ? '초록 교차점 탭=이동 · 붉은 지점 탭=체포 · 버튼=주변 수색'
+          : '이동 완료 — 붉은 지점 탭=체포 · 버튼=주변 수색');
+    } else {
+      chip.classList.add('hidden');
+      searchBtn.classList.add('hidden');
+      deselectBtn.classList.add('hidden');
+      endBtn.classList.remove('hidden');
+      const remaining = g.patrols.filter((p) => !p.acted).length;
+      hint.textContent = remaining > 0
+        ? `순찰대를 탭해 지휘하세요 (행동 남음 ${remaining})`
+        : '모든 순찰대 행동 완료 — 턴을 종료하세요';
+    }
   }
 
   renderPanel() {
@@ -1582,15 +1856,6 @@ class UI {
     document.getElementById('btn-review-dl').disabled = !reviewReady;
     document.getElementById('btn-review-copy').disabled = !reviewReady;
 
-    const sel = document.getElementById('info-selected');
-    if (this.selectedPatrol !== null && g.phase === 'police') {
-      const p = g.patrols[this.selectedPatrol];
-      sel.textContent = `순찰대 ${p.id + 1} — 이동 ${p.stepsLeft > 0 ? '가능(최대 2칸)' : '완료'} · 행동 ${p.acted ? '완료' : '가능'}`;
-    } else {
-      sel.textContent = g.phase === 'police' ? '순찰대를 클릭해 선택하세요' : '';
-    }
-
-    // 로그
     const logEl = document.getElementById('log');
     logEl.innerHTML = '';
     for (const item of this.game.log.slice(-60)) {
@@ -1758,7 +2023,7 @@ async function runSpectate() {
         if (!alive() || game.phase !== 'police') break;
         const act = policeAiAction(game, p, belief);
         if (act) {
-          game.policeAction(p.id, act.kind, act.circle);
+          game.policeAction(p.id, act.kind, act.circle ?? null);
           ui.render();
           await sleep(spectateSpeed / 2);
         }

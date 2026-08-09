@@ -34,10 +34,11 @@ export function buildReview(game) {
   push('  - 은신처는 4밤 내내 같은 곳이며 게임 끝까지 비밀. (이 기보에는 공개되어 있음)');
   push('- 잭의 이동 종류(종류만 공개, 목적지는 비공개):');
   push('  - **도보**: 인접 지점으로 1칸');
-  push('  - **마차**(게임당 3회): 한 턴에 2칸, 경찰 교차점 통과 가능');
-  push('  - **골목**(게임당 2회): 같은 블록(격자 한 칸)에 접한 다른 지점으로 순간 이동');
-  push('- 잭 이동 후 경찰 턴: 순찰대 각각 이동 1회(교차점 최대 2칸) + 행동 1회:');
-  push('  - **수색**: 자기 교차점에 인접한 지점 1곳에 "이번 밤 잭이 지나갔는지" 확인 (지나갔으면 단서)');
+  push('  - **마차**(게임당 4회): 한 턴에 2칸, 경찰 교차점 통과 가능');
+  push('  - **골목**(게임당 3회): 같은 블록(격자 한 칸)에 접한 다른 지점으로 순간 이동');
+  push('- 잭 이동 후 경찰 턴: 순찰대 각각 이동 1회(교차점 최대 2칸) 후 행동 1회 (순서: 이동 → 행동):');
+  push('  - **수색**: 자기 교차점에 인접한 지점들을 번호 순서로 차례로 확인 — "이번 밤 잭이 지나갔는지".');
+  push('    단서가 나오면 그 지점에서 수색이 멈춘다 (그 뒤 지점들은 확인 안 됨).');
   push('  - **체포**: 인접 지점 1곳을 덮침 — 잭이 *지금 그 지점에 있어야만* 성공');
   push('- 승리: 경찰은 체포/포위/새벽 검거, 잭은 4밤 생존.');
   push();
@@ -50,7 +51,7 @@ export function buildReview(game) {
   push(`- 잭의 은신처: **${num(game.jack.hideout)}번 지점** (게임 중에는 비밀이었음)`);
   push(`- 살인 후보지(붉은 지점): ${b.murderSites.map(num).join(', ')}`);
   push(`- 순찰대 시작 교차점: ${game.patrols.map((p, i) => `P${i + 1}=${crossName(b.policeStarts[i])}`).join(', ')}`);
-  push(`- 잭 특수 이동 잔여: 마차 ${game.jack.coaches}/3, 골목 ${game.jack.alleys}/2`);
+  push(`- 잭 특수 이동 잔여: 마차 ${game.jack.coaches}/4, 골목 ${game.jack.alleys}/3`);
   push();
 
   // ── 3. 타임라인 ────────────────────────────────────────────────────
@@ -68,7 +69,8 @@ export function buildReview(game) {
     } else if (e.t === 'pmove') {
       push(`  - P${e.pid + 1} 이동 ${crossName(e.from)} → ${crossName(e.to)}`);
     } else if (e.t === 'search') {
-      push(`  - P${e.pid + 1} 수색 ${num(e.circle)}번 → ${e.found ? '**단서 발견!**' : '흔적 없음'}`);
+      const parts = e.results.map((r) => `${num(r.circle)}${r.found ? '**단서!**' : '✕'}`).join(', ');
+      push(`  - P${e.pid + 1} 주변 수색: ${parts}`);
     } else if (e.t === 'arrest') {
       push(`  - P${e.pid + 1} 체포 시도 ${num(e.circle)}번 → ${e.success ? '**성공!**' : '실패(빈 곳)'}`);
     } else if (e.t === 'nightEnd') {
@@ -87,7 +89,7 @@ export function buildReview(game) {
   const arrests = game.events.filter((e) => e.t === 'arrest');
   push('## 통계');
   push();
-  push(`- 수색 ${searches.length}회 (단서 적중 ${searches.filter((e) => e.found).length}회)`);
+  push(`- 수색 ${searches.length}회 (단서 적중 ${searches.filter((e) => e.results.some((r) => r.found)).length}회)`);
   push(`- 체포 시도 ${arrests.length}회 (성공 ${arrests.filter((e) => e.success).length}회)`);
   push(`- 밤별 잭 이동 수: ${game.allPaths.map((p, i) => `${i + 1}밤 ${p.length - 1}회`).join(', ')}`);
   push();

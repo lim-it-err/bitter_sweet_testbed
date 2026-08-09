@@ -15,9 +15,12 @@ export const randomPolice = {
         patrol.acted = true;
         continue;
       }
-      const circle = adjacent[Math.floor(rng() * adjacent.length)];
-      const kind = rng() < 0.3 ? 'arrest' : 'search';
-      game.policeAction(patrol.id, kind, circle);
+      if (rng() < 0.3) {
+        const circle = adjacent[Math.floor(rng() * adjacent.length)];
+        game.policeAction(patrol.id, 'arrest', circle);
+      } else {
+        game.policeAction(patrol.id, 'search');
+      }
       if (game.phase === 'gameOver') return;
     }
     game.endPoliceTurn();

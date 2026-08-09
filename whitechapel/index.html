@@ -16,6 +16,18 @@
   <main>
     <div id="board-wrap">
       <svg id="board" preserveAspectRatio="xMidYMid meet"></svg>
+      <div id="zoom-controls">
+        <button id="zoom-in" aria-label="확대">＋</button>
+        <button id="zoom-out" aria-label="축소">－</button>
+        <button id="zoom-reset" aria-label="원래대로">⟲</button>
+      </div>
+      <div id="action-bar" class="hidden">
+        <span id="bar-chip" class="chip hidden"></span>
+        <span id="bar-hint"></span>
+        <button id="bar-search" class="hidden">🔍 주변 수색</button>
+        <button id="bar-deselect" class="ghost hidden">✕</button>
+        <button id="bar-endturn" class="hidden">턴 종료</button>
+      </div>
     </div>
 
     <aside id="panel">
@@ -34,15 +46,11 @@
 
       <section class="card">
         <h2>지휘</h2>
-        <div class="mode-row">
-          <label><input type="radio" name="mode" value="move" checked /> 이동</label>
-          <label><input type="radio" name="mode" value="search" /> 수색</label>
-          <label><input type="radio" name="mode" value="arrest" /> 체포</label>
-        </div>
-        <p id="info-selected" class="hint"></p>
         <p class="hint small">
-          순찰대(색 사각형)를 클릭해 선택 → 이동: 초록 교차점 클릭 /
-          수색·체포: 인접한 지점(원) 클릭. 순찰대마다 이동 1회(최대 2칸)와 행동 1회.
+          순찰대를 탭해 선택 → <b>이동</b>(초록 교차점 탭, 최대 2칸) →
+          <b>주변 수색</b>(버튼: 인접 지점을 단서가 나올 때까지 차례로 확인) 또는
+          <b>체포</b>(붉게 표시된 인접 지점 탭). 순서는 이동 → 행동이며, 행동하면 그 턴엔 못 움직입니다.
+          지도는 핀치/휠로 확대, 드래그로 이동.
         </p>
         <label class="hint"><input type="checkbox" id="chk-belief" /> 잭의 추정 위치 표시 (근사)</label>
         <div class="btn-row">

@@ -36,7 +36,8 @@ export class Game {
       id: i, crossing: c, stepsLeft: 0, acted: true,
     }));
     this.night = 0;
-    this.jack = { hideout: null, pos: null, path: [], movesUsed: 0, coaches: 3, alleys: 2 };
+    // 맵 확장 + 스윕 수색 규칙에 맞춘 특수 이동 수량 (마차 4, 골목 3)
+    this.jack = { hideout: null, pos: null, path: [], movesUsed: 0, coaches: 4, alleys: 3 };
     this.usedMurderSites = [];
     this.cluesPos = new Set(); // 이번 밤: 단서 발견된 지점
     this.cluesNeg = new Set(); // 이번 밤: 수색했지만 흔적 없던 지점
@@ -188,7 +189,8 @@ export class Game {
 
   movePatrol(patrolId, targetCrossing) {
     const p = this.patrols[patrolId];
-    if (this.phase !== 'police' || !this.patrolReachable(p).has(targetCrossing)) return false;
+    // 순서 규칙: 이동 → 행동. 이미 수색/체포한 순찰대는 이 턴에 더 움직일 수 없다.
+    if (this.phase !== 'police' || p.acted || !this.patrolReachable(p).has(targetCrossing)) return false;
     this.events.push({
       t: 'pmove', night: this.night, moveNo: this.jack.movesUsed,
       pid: p.id, from: p.crossing, to: targetCrossing,
@@ -202,24 +204,43 @@ export class Game {
     return this.board.circlesAt[patrol.crossing];
   }
 
-  policeAction(patrolId, kind, circleId) {
+  // 수색: 원작처럼 인접 지점을 번호 순서로 차례차례 확인하고, 단서가 나오면 멈춘다.
+  // 체포: 지정한 인접 지점 1곳을 덮친다.
+  policeAction(patrolId, kind, circleId = null) {
     const p = this.patrols[patrolId];
     if (this.phase !== 'police' || p.acted) return false;
+    if (kind === 'search') {
+      const adj = [...this.patrolAdjacentCircles(p)]
+        .sort((a, b) => this.board.circles[a].num - this.board.circles[b].num);
+      if (adj.length === 0) return false;
+      p.acted = true;
+      p.stepsLeft = 0; // 이동 → 행동 순서: 행동하면 이동 기회 소멸
+      const results = [];
+      let hit = null;
+      for (const c of adj) {
+        const found = this.jack.path.includes(c);
+        results.push({ circle: c, found });
+        if (found) {
+          this.cluesPos.add(c);
+          hit = c;
+          break;
+        }
+        this.cluesNeg.add(c);
+        this.negHistory.push({ circle: c, atMove: this.jack.movesUsed });
+      }
+      this.events.push({ t: 'search', night: this.night, moveNo: this.jack.movesUsed, pid: p.id, results });
+      if (hit !== null) {
+        this.addLog(`순찰대 ${p.id + 1}이(가) 주변을 수색하다 ${this.board.circles[hit].num}번 지점에서 단서를 발견했습니다!`, 'clue');
+      } else {
+        this.addLog(`순찰대 ${p.id + 1}이(가) 주변 ${results.length}곳을 수색했지만 흔적이 없습니다.`, '');
+      }
+      return true;
+    }
     if (!this.patrolAdjacentCircles(p).includes(circleId)) return false;
     p.acted = true;
+    p.stepsLeft = 0;
     const num = this.board.circles[circleId].num;
-    if (kind === 'search') {
-      const found = this.jack.path.includes(circleId);
-      this.events.push({ t: 'search', night: this.night, moveNo: this.jack.movesUsed, pid: p.id, circle: circleId, found });
-      if (found) {
-        this.cluesPos.add(circleId);
-        this.addLog(`순찰대 ${p.id + 1}이(가) ${num}번 지점에서 단서를 발견했습니다!`, 'clue');
-      } else {
-        this.cluesNeg.add(circleId);
-        this.negHistory.push({ circle: circleId, atMove: this.jack.movesUsed });
-        this.addLog(`순찰대 ${p.id + 1}이(가) ${num}번 지점을 수색했지만 흔적이 없습니다.`, '');
-      }
-    } else if (kind === 'arrest') {
+    if (kind === 'arrest') {
       const success = this.jack.pos === circleId;
       this.events.push({ t: 'arrest', night: this.night, moveNo: this.jack.movesUsed, pid: p.id, circle: circleId, success });
       if (success) {

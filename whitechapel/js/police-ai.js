@@ -33,7 +33,8 @@ export function policeAiMove(game, patrol, targets) {
   return best;
 }
 
-// 행동: 추정 집합이 충분히 좁고 인접에 후보가 있으면 체포, 아니면 정보가 되는 수색
+// 행동: 추정 집합이 충분히 좁고 인접에 후보가 있으면 체포, 아니면 주변 수색
+// (수색은 규칙상 인접 지점 전체를 단서가 나올 때까지 차례로 훑는다)
 export function policeAiAction(game, patrol, belief) {
   if (patrol.acted) return null;
   const adj = game.patrolAdjacentCircles(patrol);
@@ -42,21 +43,7 @@ export function policeAiAction(game, patrol, belief) {
   if (inBelief.length > 0 && belief.size <= 3) {
     return { kind: 'arrest', circle: inBelief[0] };
   }
-  if (inBelief.length > 0) {
-    // 아직 수색 안 한 후보 우선
-    const fresh = inBelief.filter((c) => !game.cluesPos.has(c) && !game.cluesNeg.has(c));
-    return { kind: 'search', circle: (fresh[0] ?? inBelief[0]) };
-  }
-  // 인접에 후보가 없으면 추정 집합에 가장 가까운 지점을 수색(경로 단서 노림)
-  const b = game.board;
-  let best = adj[0], bestD = Infinity;
-  for (const c of adj) {
-    for (const bl of belief) {
-      const d = b.circleDist[c][bl];
-      if (d < bestD) { bestD = d; best = c; }
-    }
-  }
-  return { kind: 'search', circle: best };
+  return { kind: 'search' };
 }
 
 export function planPoliceTargets(game) {
