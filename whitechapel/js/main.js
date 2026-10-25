@@ -39,26 +39,43 @@ document.getElementById('btn-speed').addEventListener('click', (e) => {
 
 document.getElementById('btn-start').addEventListener('click', () => {
   const diff = document.querySelector('input[name="difficulty"]:checked').value;
-  const spectate = document.querySelector('input[name="pmode"]:checked').value === 'spectate';
-  if (diff === 'nightmare') {
+  const pmode = document.querySelector('input[name="pmode"]:checked').value;
+  if (diff === 'nightmare' && pmode !== 'jack') {
     document.getElementById('start-warn').textContent =
       '악몽(Sonnet) 난이도는 아직 구현되지 않았습니다. 다른 난이도를 선택해 주세요.';
     return;
   }
   tryLandscape();
   document.getElementById('start-overlay').classList.add('hidden');
-  newGame(diff, spectate);
+  newGame(diff, pmode);
 });
 
-function newGame(diffKey, spectate) {
+function newGame(diffKey, pmode) {
+  const spectate = pmode === 'spectate';
+  const playAsJack = pmode === 'jack';
   const board = generateBoard(BOARD_SEED);
   game = new Game(board, diffKey);
   game.spectate = spectate;
+  game.jackMode = playAsJack ? 'manual' : 'ai';
+  // 잭 모드는 난이도에 따라 투입 순찰대 수가 달라지므로 UI 생성 전에 확정한다
+  if (playAsJack) game.startGame();
   ui = new UI(game, {
     onEndTurn: endTurn,
     onNewGame: startScreen,
     onStateChanged: checkGameOver,
+    onJackStateChanged: afterJackAction,
   });
+  if (playAsJack) {
+    ui.render();
+    ui.showModal(
+      '당신이 잭입니다',
+      `AI 경찰 ${game.patrols.length}개 순찰대를 4번의 밤 동안 따돌리세요.<br>`
+        + '먼저 <b>은신처</b>를 정합니다 — 매일 밤 이곳으로 돌아와야 합니다(이동 15회 제한).<br>'
+        + '보라색으로 표시된 지점 중에서 고르세요.',
+      '은신처 고르기',
+    );
+    return;
+  }
   const speedBtn = document.getElementById('btn-speed');
   speedBtn.classList.toggle('visible', spectate);
   if (spectate) {
@@ -122,6 +139,56 @@ function endTurn() {
   runJackTurn();
 }
 
+// ── 잭 플레이 모드: 내 수 이후 AI 경찰이 자동으로 대응 ─────────
+async function afterJackAction() {
+  if (!game || game.jackMode !== 'manual') return;
+  if (game.phase === 'chooseMurder') {
+    ui.render();
+    return;
+  }
+  if (game.phase === 'police') {
+    await runPoliceAi();
+    return;
+  }
+  if (game.phase === 'nightEnd') {
+    ui.showModal(
+      `${game.night}번째 밤 종료`,
+      '은신처로 무사히 돌아왔습니다. 단서 마커가 정리되고 다음 밤이 시작됩니다.',
+      '다음 밤으로',
+      () => {
+        game.startNight();
+        ui.render();
+        ui.showModal(`${game.night}번째 밤`, '범행할 붉은 지점을 고르세요.', '확인');
+      },
+    );
+    return;
+  }
+  if (game.phase === 'gameOver') showGameOver();
+}
+
+async function runPoliceAi() {
+  const { belief, targets } = planPoliceTargets(game);
+  for (const p of game.patrols) {
+    if (game.phase !== 'police') break;
+    const mv = policeAiMove(game, p, targets);
+    if (mv !== null) {
+      game.movePatrol(p.id, mv);
+      ui.render();
+      await sleep(220);
+    }
+    if (game.phase !== 'police') break;
+    const act = policeAiAction(game, p, belief);
+    if (act) {
+      game.policeAction(p.id, act.kind, act.circle ?? null);
+      ui.render();
+      await sleep(220);
+    }
+  }
+  if (game.phase === 'police') game.endPoliceTurn();
+  ui.render();
+  if (game.phase === 'gameOver') showGameOver();
+}
+
 // ── AI 관전 모드: 경찰 AI vs 잭 AI ────────────────────────────
 async function runSpectate() {
   const token = ++spectateRun;
@@ -166,6 +233,22 @@ function checkGameOver() {
 function showGameOver() {
   ui.render();
   const hideNum = game.board.circles[game.jack.hideout].num;
+  if (game.jackMode === 'manual') {
+    if (game.winner === 'police') {
+      ui.showModal(
+        '붙잡혔다...',
+        `AI 경찰에게 검거되었습니다. ${game.night}번째 밤이었습니다.<br>오른쪽 <b>리뷰</b>에서 기보를 내보내 분석을 받아보세요.`,
+        '새 게임', startScreen,
+      );
+    } else {
+      ui.showModal(
+        '완전 범죄',
+        `${NIGHTS}번의 밤을 모두 살아남았습니다. 은신처 ${hideNum}번은 끝내 발각되지 않았습니다.<br>오른쪽 <b>리뷰</b>에서 기보를 내보내 분석을 받아보세요.`,
+        '새 게임', startScreen,
+      );
+    }
+    return;
+  }
   const who = game.spectate ? 'AI 경찰이' : '당신이';
   if (game.winner === 'police') {
     ui.showModal(

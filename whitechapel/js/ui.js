@@ -34,6 +34,8 @@ export class UI {
     this.vb = { x: 0, y: 0, w: b.viewW, h: b.viewH };
     this.applyViewBox();
 
+    this.gBlocks = el('g', {}, svg);
+    this.gLabels = el('g', {}, svg);
     this.gEdges = el('g', {}, svg);
     this.gPaths = el('g', {}, svg);
     this.gBelief = el('g', {}, svg);
@@ -42,6 +44,16 @@ export class UI {
     this.gCrossings = el('g', {}, svg);
     this.gMarkers = el('g', {}, svg);
     this.gPatrols = el('g', {}, svg);
+
+    // 도시 블록(건물 덩어리) — 도로가 도드라지도록 바닥을 깐다
+    for (const blk of b.blocks) {
+      el('rect', { x: blk.x, y: blk.y, width: blk.w, height: blk.h, rx: 3, class: 'city-block' }, this.gBlocks);
+    }
+    // 구역 이름 (런던 이스트엔드 지명)
+    for (const d of b.districts) {
+      const t = el('text', { x: d.x, y: d.y, class: 'district-label' }, this.gLabels);
+      t.textContent = d.name;
+    }
 
     // 도로 — 간선도로는 굵게
     for (const c of b.circles) {
@@ -211,6 +223,15 @@ export class UI {
       this.selectedPatrol = null;
       this.render();
     });
+    // 잭 플레이 모드: 특수 이동 수단 예약 (다음 목적지 탭에 적용)
+    document.getElementById('bar-coach').addEventListener('click', () => {
+      this.jackMoveType = this.jackMoveType === 'coach' ? null : 'coach';
+      this.render();
+    });
+    document.getElementById('bar-alley').addEventListener('click', () => {
+      this.jackMoveType = this.jackMoveType === 'alley' ? null : 'alley';
+      this.render();
+    });
     document.getElementById('btn-review-dl').addEventListener('click', () => {
       const md = buildReview(this.game);
       const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
@@ -236,6 +257,13 @@ export class UI {
     return this.game.phase === 'police' && !this.game.spectate && !this._dragged;
   }
 
+  // 잭 플레이 모드에서 플레이어가 지점을 고르는 단계인가
+  jackPicking() {
+    const g = this.game;
+    return g.jackMode === 'manual' && !this._dragged
+      && (g.phase === 'chooseHideout' || g.phase === 'chooseMurder' || g.phase === 'jack');
+  }
+
   onPatrolClick(pid) {
     if (!this.canCommand()) return;
     this.selectedPatrol = this.selectedPatrol === pid ? null : pid;
@@ -247,16 +275,46 @@ export class UI {
     if (this.game.movePatrol(this.selectedPatrol, cid)) this.render();
   }
 
-  // 지점 탭 = 체포 시도 (선택된 순찰대의 인접 지점만 반응)
+  // 지점 탭 — 경찰 턴이면 체포, 잭 플레이 모드면 은신처/살인지/이동 선택
   onCircleClick(circleId) {
+    const g = this.game;
+    if (this.jackPicking()) {
+      this.onJackPick(circleId);
+      return;
+    }
     if (!this.canCommand() || this.selectedPatrol === null) return;
-    const p = this.game.patrols[this.selectedPatrol];
-    if (p.acted || !this.game.patrolAdjacentCircles(p).includes(circleId)) return;
-    if (this.game.policeAction(this.selectedPatrol, 'arrest', circleId)) {
+    const p = g.patrols[this.selectedPatrol];
+    if (p.acted || !g.patrolAdjacentCircles(p).includes(circleId)) return;
+    if (g.policeAction(this.selectedPatrol, 'arrest', circleId)) {
       this.selectedPatrol = null;
       this.cb.onStateChanged();
       this.render();
     }
+  }
+
+  onJackPick(circleId) {
+    const g = this.game;
+    if (g.phase === 'chooseHideout') {
+      if (g.setHideout(circleId)) { this.render(); this.cb.onJackStateChanged?.(); }
+      return;
+    }
+    if (g.phase === 'chooseMurder') {
+      if (g.setMurderSite(circleId)) { this.render(); this.cb.onJackStateChanged?.(); }
+      return;
+    }
+    // 이동: 같은 목적지에 여러 수단이 있으면 도보 > 골목 > 마차 순으로 자원을 아낀다
+    const options = g.legalJackMoves().filter((m) => m.to === circleId);
+    if (options.length === 0) return;
+    const order = { move: 0, alley: 1, coach: 2 };
+    options.sort((a, b) => order[a.type] - order[b.type]);
+    const pick = this.jackMoveType && options.find((m) => m.type === this.jackMoveType)
+      ? options.find((m) => m.type === this.jackMoveType)
+      : options[0];
+    g.playJackMove(pick.to, pick.type).then(() => {
+      this.jackMoveType = null;
+      this.render();
+      this.cb.onJackStateChanged?.();
+    });
   }
 
   // ── 렌더링 ──────────────────────────────────────────────────
@@ -272,7 +330,24 @@ export class UI {
     });
 
     this.crossingNodes.forEach((n) => n.classList.remove('reachable'));
-    this.circleNodes.forEach((n) => n.classList.remove('arrestable', 'murder-current'));
+    this.circleNodes.forEach((n) => n.classList.remove('arrestable', 'murder-current', 'jack-option', 'jack-here'));
+
+    // 잭 플레이 모드: 선택 가능한 지점 강조
+    if (g.jackMode === 'manual') {
+      if (g.phase === 'chooseHideout') {
+        for (const c of b.circles) {
+          if (g.hideoutSelectable(c.id)) this.circleNodes[c.id].classList.add('jack-option');
+        }
+      } else if (g.phase === 'chooseMurder') {
+        for (const s of b.murderSites) {
+          if (!g.usedMurderSites.includes(s)) this.circleNodes[s].classList.add('jack-option');
+        }
+      } else if (g.phase === 'jack') {
+        for (const m of g.legalJackMoves()) this.circleNodes[m.to].classList.add('jack-option');
+        if (g.jack.pos !== null) this.circleNodes[g.jack.pos].classList.add('jack-here');
+      }
+    }
+
     if (g.phase === 'police' && !g.spectate && this.selectedPatrol !== null) {
       const p = g.patrols[this.selectedPatrol];
       if (!p.acted && p.stepsLeft > 0) {
@@ -307,6 +382,15 @@ export class UI {
     }
 
     this.gPaths.innerHTML = '';
+    // 잭 플레이 모드에서는 내 은신처와 지나온 경로를 항상 볼 수 있다
+    if (g.jackMode === 'manual' && g.phase !== 'gameOver' && g.jack.hideout !== null) {
+      const h = b.circles[g.jack.hideout];
+      el('circle', { cx: h.x, cy: h.y, r: 19, class: 'hideout-reveal' }, this.gPaths);
+      if (g.jack.path.length > 1) {
+        const pts = g.jack.path.map((cid) => `${b.circles[cid].x},${b.circles[cid].y}`).join(' ');
+        el('polyline', { points: pts, class: 'jack-path', stroke: NIGHT_PATH_COLORS[0] }, this.gPaths);
+      }
+    }
     if (g.phase === 'gameOver') {
       const h = b.circles[g.jack.hideout];
       el('circle', { cx: h.x, cy: h.y, r: 19, class: 'hideout-reveal' }, this.gPaths);
@@ -328,15 +412,47 @@ export class UI {
   renderActionBar() {
     const g = this.game;
     const bar = document.getElementById('action-bar');
-    const active = g.phase === 'police' && !g.spectate;
-    bar.classList.toggle('hidden', !active);
-    if (!active) return;
-
     const chip = document.getElementById('bar-chip');
     const hint = document.getElementById('bar-hint');
     const searchBtn = document.getElementById('bar-search');
     const deselectBtn = document.getElementById('bar-deselect');
     const endBtn = document.getElementById('bar-endturn');
+    const coachBtn = document.getElementById('bar-coach');
+    const alleyBtn = document.getElementById('bar-alley');
+
+    // 잭 플레이 모드 바
+    if (g.jackMode === 'manual' && ['chooseHideout', 'chooseMurder', 'jack'].includes(g.phase)) {
+      bar.classList.remove('hidden');
+      chip.classList.add('hidden');
+      searchBtn.classList.add('hidden');
+      deselectBtn.classList.add('hidden');
+      endBtn.classList.add('hidden');
+      const jackTurnNow = g.phase === 'jack';
+      coachBtn.classList.toggle('hidden', !jackTurnNow);
+      alleyBtn.classList.toggle('hidden', !jackTurnNow);
+      if (jackTurnNow) {
+        coachBtn.disabled = g.jack.coaches <= 0;
+        alleyBtn.disabled = g.jack.alleys <= 0;
+        coachBtn.textContent = `🐎 마차 ${g.jack.coaches}`;
+        alleyBtn.textContent = `🚪 골목 ${g.jack.alleys}`;
+        coachBtn.classList.toggle('active', this.jackMoveType === 'coach');
+        alleyBtn.classList.toggle('active', this.jackMoveType === 'alley');
+      }
+      hint.textContent = g.phase === 'chooseHideout'
+        ? '보라색 지점 중 은신처를 고르세요'
+        : g.phase === 'chooseMurder'
+          ? '범행할 붉은 지점을 고르세요'
+          : (this.jackMoveType
+            ? `${this.jackMoveType === 'coach' ? '마차' : '골목'} 이동 — 목적지를 탭하세요`
+            : `보라색 지점 탭=도보 이동 (${g.jack.movesUsed}/${MOVES_PER_NIGHT})`);
+      return;
+    }
+    coachBtn.classList.add('hidden');
+    alleyBtn.classList.add('hidden');
+
+    const active = g.phase === 'police' && !g.spectate;
+    bar.classList.toggle('hidden', !active);
+    if (!active) return;
 
     if (this.selectedPatrol !== null) {
       const p = g.patrols[this.selectedPatrol];
@@ -374,14 +490,17 @@ export class UI {
     set('info-diff', g.diff.name);
     set('info-lastmove', g.lastJackDecl === 'coach' ? '마차' : g.lastJackDecl === 'alley' ? '골목' : g.lastJackDecl === 'move' ? '도보' : '-');
 
+    const asJack = g.jackMode === 'manual';
     const phaseText = {
       setup: '준비 중',
-      jack: '잭이 움직이는 중...',
-      police: g.spectate ? 'AI 경찰이 수사 중...' : '경찰 턴 — 순찰대를 지휘하세요',
+      chooseHideout: '은신처를 고르세요',
+      chooseMurder: '범행 장소를 고르세요',
+      jack: asJack ? '당신의 차례 — 이동하세요' : '잭이 움직이는 중...',
+      police: (g.spectate || asJack) ? 'AI 경찰이 수사 중...' : '경찰 턴 — 순찰대를 지휘하세요',
       nightEnd: '밤이 끝났습니다',
       gameOver: g.winner === 'police'
-        ? (g.spectate ? 'AI 경찰이 잭을 검거했습니다' : '승리! 잭을 검거했습니다')
-        : '잭이 사라졌습니다...',
+        ? (asJack ? '검거되었습니다...' : g.spectate ? 'AI 경찰이 잭을 검거했습니다' : '승리! 잭을 검거했습니다')
+        : (asJack ? '완전 범죄 — 당신의 승리' : '잭이 사라졌습니다...'),
     };
     set('info-phase', phaseText[g.phase] ?? '');
 

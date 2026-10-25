@@ -35,6 +35,7 @@ export class Game {
     this.patrols = board.policeStarts.map((c, i) => ({
       id: i, crossing: c, stepsLeft: 0, acted: true,
     }));
+    this.fullPatrols = this.patrols;
     this.night = 0;
     // 맵 확장 + 스윕 수색 규칙에 맞춘 특수 이동 수량 (마차 4, 골목 3)
     this.jack = { hideout: null, pos: null, path: [], movesUsed: 0, coaches: 4, alleys: 3 };
@@ -47,9 +48,11 @@ export class Game {
     this.allPaths = []; // 밤별 잭 이동 경로(게임 종료 시 공개)
     this.events = []; // 리뷰(기보) 내보내기용 구조화 이벤트
     this.log = [];
-    this.phase = 'setup'; // setup|jack|police|nightEnd|gameOver
+    // setup|chooseHideout|chooseMurder|jack|police|nightEnd|gameOver
+    this.phase = 'setup';
     this.winner = null; // 'police'|'jack'
     this.lastJackDecl = null;
+    this.jackMode = 'ai'; // 'ai' | 'manual' (잭 플레이 모드)
   }
 
   addLog(msg, cls = '') {
@@ -57,14 +60,53 @@ export class Game {
   }
 
   startGame() {
+    if (this.jackMode === 'manual') {
+      // 잭 플레이 모드에서는 난이도가 곧 투입 순찰대 규모다 (스윕 수색이 강력하므로)
+      const squads = { easy: 2, medium: 3, hard: 5 }[this.diff.key] ?? 5;
+      this.patrols = this.fullPatrols.slice(0, squads);
+      this.phase = 'chooseHideout';
+      this.addLog('당신이 잭입니다. 은신처로 쓸 지점을 선택하세요 (살인 후보지와 그 인접은 불가).', 'jack');
+      return;
+    }
     this.jack.hideout = chooseHideout(this);
     this.addLog('잭이 은신처를 정했습니다. 위치는 게임이 끝날 때까지 비밀입니다.', 'jack');
     this.startNight();
   }
 
+  // 잭 플레이 모드: 은신처 직접 선택
+  hideoutSelectable(circleId) {
+    const murderSet = new Set(this.board.murderSites);
+    if (murderSet.has(circleId)) return false;
+    return !this.board.circleAdj[circleId].some((e) => murderSet.has(e.to));
+  }
+
+  setHideout(circleId) {
+    if (this.phase !== 'chooseHideout' || !this.hideoutSelectable(circleId)) return false;
+    this.jack.hideout = circleId;
+    this.addLog(`은신처를 ${this.board.circles[circleId].num}번 지점으로 정했습니다. 경찰에게는 비밀입니다.`, 'jack');
+    this.startNight();
+    return true;
+  }
+
   startNight() {
     this.night++;
-    const site = chooseMurderSite(this);
+    if (this.jackMode === 'manual') {
+      this.phase = 'chooseMurder';
+      this.addLog(`${this.night}번째 밤 — 범행 장소(붉은 지점)를 선택하세요.`, 'jack');
+      return;
+    }
+    this.beginNight(chooseMurderSite(this));
+  }
+
+  // 잭 플레이 모드: 살인 지점 직접 선택
+  setMurderSite(circleId) {
+    if (this.phase !== 'chooseMurder') return false;
+    if (!this.board.murderSites.includes(circleId) || this.usedMurderSites.includes(circleId)) return false;
+    this.beginNight(circleId);
+    return true;
+  }
+
+  beginNight(site) {
     this.usedMurderSites.push(site);
     this.jack.pos = site;
     this.jack.path = [site];
@@ -105,15 +147,27 @@ export class Game {
     return out;
   }
 
+  // 잭 플레이 모드: 플레이어가 고른 수를 적용 (없는 수면 거부)
+  async playJackMove(to, type) {
+    if (this.phase !== 'jack' || this.jackMode !== 'manual') return false;
+    const move = this.legalJackMoves().find((m) => m.to === to && m.type === type);
+    if (!move) return false;
+    return this.applyJackMove(move);
+  }
+
   async jackTurn() {
     const move = await decideJackMove(this);
+    return this.applyJackMove(move);
+  }
+
+  applyJackMove(move) {
     if (!move) {
       this.winner = 'police';
       this.phase = 'gameOver';
       this.allPaths.push([...this.jack.path]);
       this.events.push({ t: 'end', winner: 'police', reason: 'trapped', night: this.night });
       this.addLog('잭이 순찰대에 포위되어 움직이지 못했습니다. 검거 성공!', 'win');
-      return;
+      return false;
     }
     this.events.push({
       t: 'jack', night: this.night, moveNo: this.jack.movesUsed + 1,
@@ -138,7 +192,7 @@ export class Game {
 
     if (this.jack.pos === this.jack.hideout) {
       this.endNight();
-      return;
+      return true;
     }
     if (this.jack.movesUsed >= MOVES_PER_NIGHT) {
       this.winner = 'police';
@@ -146,10 +200,11 @@ export class Game {
       this.allPaths.push([...this.jack.path]);
       this.events.push({ t: 'end', winner: 'police', reason: 'dawn', night: this.night });
       this.addLog('동이 텄습니다. 은신처로 돌아가지 못한 잭이 검거되었습니다!', 'win');
-      return;
+      return true;
     }
     this.phase = 'police';
     for (const p of this.patrols) { p.stepsLeft = 2; p.acted = false; }
+    return true;
   }
 
   endNight() {

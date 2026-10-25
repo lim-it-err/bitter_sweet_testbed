@@ -249,10 +249,52 @@ export function generateBoard(seed = 18881109) {
     cid(CX, (H - 1) / 2),
   ];
 
+  // 구역(동네) — 간선도로가 나누는 12개 구역에 실제 런던 이스트엔드 지명을 붙인다
+  const DISTRICT_NAMES = [
+    ['쇼디치', '베스널 그린', '글로브 타운', '보우'],
+    ['스피탈필즈', '화이트채플', '스텝니', '마일 엔드'],
+    ['올드게이트', '섀드웰', '와핑', '라임하우스'],
+  ];
+  // 도시 블록(시각용) — 격자 한 칸의 안쪽 사각형
+  const blocks = [];
+  for (let gy = 0; gy < H - 1; gy++) {
+    for (let gx = 0; gx < W - 1; gx++) {
+      const corners = [cid(gx, gy), cid(gx + 1, gy), cid(gx, gy + 1), cid(gx + 1, gy + 1)]
+        .map((id) => crossings[id]);
+      const inset = 15;
+      const x0 = Math.max(corners[0].x, corners[2].x) + inset;
+      const x1 = Math.min(corners[1].x, corners[3].x) - inset;
+      const y0 = Math.max(corners[0].y, corners[1].y) + inset;
+      const y1 = Math.min(corners[2].y, corners[3].y) - inset;
+      if (x1 > x0 && y1 > y0) {
+        blocks.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 });
+      }
+    }
+  }
+
+  // 구역 라벨은 도로/지점과 겹치지 않도록 블록(건물 덩어리) 중앙에 놓는다
+  const xBounds = [0, ...V_ARTERIALS, W - 1];
+  const yBounds = [0, ...H_ARTERIALS, H - 1];
+  const districts = [];
+  for (let yi = 0; yi < yBounds.length - 1; yi++) {
+    for (let xi = 0; xi < xBounds.length - 1; xi++) {
+      const cx = MARGIN + ((xBounds[xi] + xBounds[xi + 1]) / 2) * SP;
+      const cy = MARGIN + ((yBounds[yi] + yBounds[yi + 1]) / 2) * SP;
+      let best = null, bestD = Infinity;
+      for (const blk of blocks) {
+        if (blk.w < 40) continue; // 이름이 들어갈 만큼 넓은 블록만
+        const d = Math.hypot(blk.cx - cx, blk.cy - cy);
+        if (d < bestD) { bestD = d; best = blk; }
+      }
+      districts.push({ name: DISTRICT_NAMES[yi][xi], x: best?.cx ?? cx, y: best?.cy ?? cy });
+    }
+  }
+
   return {
     crossings, circles, circlesAt, crossingAdj, circleAdj,
     alleyMates: alleyMates.map((s) => [...s]),
     circleDist, crossingDist, murderSites, policeStarts,
+    districts, blocks,
     viewW: MARGIN * 2 + (W - 1) * SP,
     viewH: MARGIN * 2 + (H - 1) * SP,
   };
